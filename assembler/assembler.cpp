@@ -270,8 +270,6 @@ class CodeGenerator {
         }
     public:
         void generate(std::vector<Tokens> tokens, std::vector<Tokens> stokens, short num) {
-            //A=2, R, ;JMP, -R, R;JMP, R+R, -R;JMP, R+R;JMP, R¿=R, R¿=0, R¿=-R, R¿=R;JMP, R¿=0;JMP, R¿=R+R, R¿=-R;JMP, R¿=R+R;JMP
-            //R, ;JMP, -R, R;JMP, R+R, -R;JMP, R+R;JMP, R¿=R, R¿=0, R¿=-R, R¿=R;JMP, R¿=0;JMP, R¿=R+R, R¿=-R;JMP, R¿=R+R;JMP
             twork = tokens;
             stwork = stokens;
             //Exception: A = Number
@@ -385,6 +383,9 @@ class CodeGenerator {
 };
 
 void parseLine(std::string line) {
+    if (line[0] == '#') {
+        return;
+    }
     Tokenizer tokenizer;
     std::vector<Tokens> tokens = tokenizer.tokenize(line);
     GrammarChecker grammarchecker;

@@ -17,7 +17,7 @@ Just grab your favourite compiler and compile all the CPP files in the base dir.
 
 ## Assembler
 The assembler, is a little program that assembles code as described in the official NAND Game website into binary or decimal (if the -d flag is present) code.
-At the moment, comments, hexadecimal and binary numbers and labels are not supported.
+At the moment, hexadecimal and binary numbers and labels are not supported.
 
 ### Compiling the Assembler
 Just compile the Assembler and Misc CPP files.
