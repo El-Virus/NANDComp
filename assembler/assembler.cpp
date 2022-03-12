@@ -483,7 +483,8 @@ int main(int argc, char **argv) {
     } else if (argc == 2) {
         filename = argv[1];
     } else if (argc == 3) {
-        useDec = true;
+        if (string(argv[1]) == "-d")
+            useDec = true;
         filename = argv[2];
     }
     std::vector<string> src;
