@@ -29,8 +29,6 @@ int main(int argc, char **argv) {
     MEMORY::ROM ROM(ROMMem);
     COMPUTER::Computer computer(ROM);
 
-    for (unsigned int i = 0; i < ROMMem.size(); i++) {
-        computer.tick();
-    }
+    computer.run();
     printf("A Register: %i", computer.getLastA());
 }

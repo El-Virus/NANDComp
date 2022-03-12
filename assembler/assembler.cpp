@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <regex>
 #include <bitset>
@@ -11,9 +12,6 @@ using std::string;
 using namespace TYPES;
 using namespace BITMAN;
 using namespace MISC;
-std::vector<std::string> bits;
-unsigned int linen = 1;
-bool useDec = false;
 
 enum Tokens {
     Number,
@@ -41,6 +39,16 @@ enum Tokens {
     __END__
 };
 
+struct Label {
+    string name;
+    unsigned int line;
+};
+
+std::vector<std::string> bits;
+unsigned int linen = 1;
+bool useDec = false;
+std::vector<Label> labels;
+
 template <typename T>
 bool isBetween(T min, T x, T max) {
     return (min < x && x < max);
@@ -51,13 +59,43 @@ bool vecContains(std::vector<T> v, T x) {
     return (std::find(v.begin(), v.end(), x) != v.end());
 }
 
-std::string getFileName(std::string const& str) {
-    std::string::size_type pos = str.find('.');
+std::string getSubStrBefore(std::string const& str, const char chr) {
+    std::string::size_type pos = str.find(chr);
     if (pos != std::string::npos) {
         return str.substr(0, pos);
     } else {
         return str;
     }
+}
+
+std::vector<string> cutString(string str, char delim) {
+    std::stringstream ss(str);
+    std::string segment;
+    std::vector<std::string> seglist;
+
+    while(std::getline(ss, segment, delim))
+    {
+        seglist.push_back(segment);
+    }
+    return seglist;
+}
+
+bool labelExists(string label) {
+    for (SU i = 0; i < labels.size(); i++) {
+        if (labels[i].name == label) {
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned int getLabel(string label) {
+    for (SU i = 0; i < labels.size(); i++) {
+        if (labels[i].name == label) {
+            return labels[i].line;
+        }
+    }
+    return 0;
 }
 
 class Tokenizer {
@@ -106,6 +144,15 @@ class Tokenizer {
             }
             matchExact(c, type);
         }
+        void matchLabel() {
+            std::string label = getSubStrBefore(work, ';');
+            if (labelExists(label)) {
+                num = getLabel(label);
+                res.push_back(Tokens::Number);
+                work.erase(0, label.length());
+                iter = 0;
+            }
+        }
     public:
         std::vector<Tokens> tokenize(string str) {
             res.clear();
@@ -130,6 +177,7 @@ class Tokenizer {
                 matchExact(";JLT", Tokens::JLT);
                 matchExact(";JLE", Tokens::JLE);
                 matchRegex(";?JMP", Tokens::JMP, false);
+                matchLabel();
                 iter++;
             }
             if (iter >= 10) {
@@ -304,8 +352,8 @@ class CodeGenerator {
                 work.b[SM] = 1;
                 std::replace(twork.begin(), twork.end(), Tokens::AM, Tokens::A);
             }
-            if (stwork[-1] == Tokens::_JMP) {
-                pullJump(twork[-1]);
+            if (stwork.back() == Tokens::_JMP) {
+                pullJump(twork.back());
                 twork.pop_back();
                 stwork.pop_back();
             }
@@ -398,6 +446,35 @@ void parseLine(std::string line) {
     }
 }
 
+void firstPass(std::vector<string> *src) {
+    for (unsigned int i = 0; i < src->size(); i++) {
+        if ((*src)[i][0] == '#') {
+            src->erase(src->begin() + i);
+            i--;
+        }
+    }
+    for (unsigned int i = 0; i < src->size(); i++) {
+        if ((*src)[i].substr(0, 5) == "LABEL") {
+            labels.push_back({cutString((*src)[i], ' ')[1], i});
+            src->erase(src->begin() + i);
+            i--;
+        }
+    }
+}
+
+void parseSource(std::vector<string> src) {
+    firstPass(&src);
+    for (SU i = 0; i < src.size(); i++) {
+        parseLine(src[i]);
+        linen++;
+    }
+    if (useDec) {
+        bits.push_back("49152");
+    } else {
+        bits.push_back("1100000000000000");
+    }
+}
+
 int main(int argc, char **argv) {
     string filename;
     if (argc < 2) {
@@ -409,7 +486,7 @@ int main(int argc, char **argv) {
         useDec = true;
         filename = argv[2];
     }
-
+    std::vector<string> src;
     std::fstream source;
     source.open(filename);
     if (!source.is_open()) {
@@ -418,11 +495,13 @@ int main(int argc, char **argv) {
     }
     std::string line;
     while(std::getline(source, line)){  //read data from file object and put it into string.
-        parseLine(line);
-        linen++;
+        src.push_back(line);
     }
     source.close();
-    std::ofstream code(getFileName(string(filename)) + ".bit", std::ofstream::trunc);
+
+    parseSource(src);
+
+    std::ofstream code(getSubStrBefore(string(filename), '.') + ".bit", std::ofstream::trunc);
     if (!code.is_open()) {
         printf("Could not open destination file %s.", (string(filename) + ".bit").c_str());
         return 1;

@@ -1,5 +1,6 @@
 #include "plumbing.hpp" 
 #include <cmath>
+#include <bitset>
 
 using namespace LOGIC_GATES;
 using namespace TYPES;
@@ -20,14 +21,6 @@ namespace PLUMBING {
 
     //Logic Exception
     SU switch16(WORD s) {
-        WORD work = s;
-        SU dec = 0, i = 0, rem;
-        while (work!=0) {
-            rem = work % 10;
-            work /= 10;
-            dec += rem * pow(2, i);
-            ++i;
-        }
-        return dec;
+        return std::bitset<16>(s).to_ulong();
     }
 }
