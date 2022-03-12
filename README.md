@@ -5,7 +5,7 @@ NANDComp is an emulator of a CPU based on [NandGame](https://nandgame.com/).
 It's written from a scratch and only uses standard libraries.
 
 All the code originates from the NAND() function, one of the (What I like to call) "Logical Exceptions", which are pieces of code which can use if statements and arithmeticological operations that aren't originated from NAND.
-At the moment the three "Logical Exceptions" are: NAND(Yhe base function itself), BITMAN(Namespace emulating bit operations) & switch16(Converts binary to decimal).
+At the moment the two "Logical Exceptions" are: NAND(Yhe base function itself), BITMAN(Namespace emulating bit operations).
 
 ## Running
 The emulator reads the code it should run from a file containing the decimal encoded instructions.
