@@ -39,15 +39,16 @@ enum Tokens {
     __END__
 };
 
-struct Label {
-    string name;
-    unsigned int line;
+struct KVP {
+    string key;
+    unsigned int value;
 };
 
 std::vector<std::string> bits;
 unsigned int linen = 1;
 bool useDec = false;
-std::vector<Label> labels;
+std::vector<KVP> labels;
+std::vector<KVP> constants;
 
 template <typename T>
 bool isBetween(T min, T x, T max) {
@@ -59,10 +60,14 @@ bool vecContains(std::vector<T> v, T x) {
     return (std::find(v.begin(), v.end(), x) != v.end());
 }
 
-std::string getSubStrBefore(std::string const& str, const char chr) {
+std::string getSubStrBAChar(std::string const& str, const char chr, bool before) {
     std::string::size_type pos = str.find(chr);
     if (pos != std::string::npos) {
-        return str.substr(0, pos);
+        if (before) {
+            return str.substr(0, pos);
+        } else {
+            return str.substr(pos);
+        }
     } else {
         return str;
     }
@@ -82,7 +87,7 @@ std::vector<string> cutString(string str, char delim) {
 
 bool labelExists(string label) {
     for (SU i = 0; i < labels.size(); i++) {
-        if (labels[i].name == label) {
+        if (labels[i].key == label) {
             return true;
         }
     }
@@ -91,8 +96,26 @@ bool labelExists(string label) {
 
 unsigned int getLabel(string label) {
     for (SU i = 0; i < labels.size(); i++) {
-        if (labels[i].name == label) {
-            return labels[i].line;
+        if (labels[i].key == label) {
+            return labels[i].value;
+        }
+    }
+    return 0;
+}
+
+bool constantExists(string constant) {
+    for (SU i = 0; i < constants.size(); i++) {
+        if (constants[i].key == constant) {
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned int getConstant(string constant) {
+    for (SU i = 0; i < constants.size(); i++) {
+        if (constants[i].key == constant) {
+            return constants[i].value;
         }
     }
     return 0;
@@ -148,12 +171,17 @@ class Tokenizer {
             }
             matchExact(c, type);
         }
-        void matchLabel() {
-            std::string label = getSubStrBefore(work, ';');
-            if (labelExists(label)) {
-                num = getLabel(label);
+        void matchLabelConstant() {
+            std::string constlabel = getSubStrBAChar(work, ';', true);
+            if (labelExists(constlabel)) {
+                num = getLabel(constlabel);
                 res.push_back(Tokens::Number);
-                work.erase(0, label.length());
+                work.erase(0, constlabel.length());
+                iter = 0;
+            } else if (constantExists(constlabel)) {
+                num = getConstant(constlabel);
+                res.push_back(Tokens::Number);
+                work.erase(0, constlabel.length());
                 iter = 0;
             }
         }
@@ -162,7 +190,7 @@ class Tokenizer {
             if (ret != "") {
                 num = stoi(ret.substr(2), (size_t *)nullptr, 2);
             }
-            ret = matchRegex("(0x)?[0-9a-f]+", Tokens::Number);
+            ret = matchRegex("(0x)?[0-9a-fA-F]+", Tokens::Number);
             if (ret != "") {
                 num = stoi(ret.substr(2), (size_t *)nullptr, 16);
             }
@@ -196,7 +224,7 @@ class Tokenizer {
                 matchExact(";JLT", Tokens::JLT);
                 matchExact(";JLE", Tokens::JLE);
                 matchRegex(";?JMP", Tokens::JMP);
-                matchLabel();
+                matchLabelConstant();
                 iter++;
             }
             if (iter >= 10) {
@@ -479,6 +507,22 @@ void firstPass(std::vector<string> *src) {
             i--;
         }
     }
+    for (unsigned int i = 0; i < src->size(); i++) {
+        if ((*src)[i][0] == '&') {
+            string str = (*src)[i];
+            str.erase(str.begin());
+            str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+            std::regex rx("^[a-zA-Z]+=[0-9]+$");
+            std::smatch sm;
+            if (!std::regex_match(str, sm, rx)) {
+                printf("Constant definition error. Check your syntax.");
+                exit(1);
+            }
+            constants.push_back({getSubStrBAChar(str, '=', true), (unsigned int)abs(atoi(getSubStrBAChar(str, '=', false).c_str()))});
+            src->erase(src->begin() + i);
+            i--;
+        }
+    }
 }
 
 void parseSource(std::vector<string> src) {
@@ -515,13 +559,14 @@ int main(int argc, char **argv) {
     }
     std::string line;
     while(std::getline(source, line)){  //read data from file object and put it into string.
-        src.push_back(line);
+        if(line.size())
+            src.push_back(line);
     }
     source.close();
 
     parseSource(src);
 
-    std::ofstream code(getSubStrBefore(string(filename), '.') + ".bit", std::ofstream::trunc);
+    std::ofstream code(getSubStrBAChar(string(filename), '.', true) + ".bit", std::ofstream::trunc);
     if (!code.is_open()) {
         printf("Could not open destination file %s.", (string(filename) + ".bit").c_str());
         return 1;

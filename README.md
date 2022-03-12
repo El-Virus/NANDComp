@@ -17,6 +17,7 @@ Just grab your favourite compiler and compile all the CPP files in the base dir.
 
 ## Assembler
 The assembler, is a little program that assembles code as described in the official NAND Game website into binary or decimal (if the -d flag is present) code.
+Constants are defined by specifying a "&" character before name = value. Eg. `&constVal = 0`. At the moment negative values are not supported (You can use 0xffff)
 
 ### Compiling the Assembler
 Just compile the Assembler and Misc CPP files.
