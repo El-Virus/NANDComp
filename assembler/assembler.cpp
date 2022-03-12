@@ -108,18 +108,19 @@ class Tokenizer {
         void ignore(char c) {
             work.erase(std::remove(work.begin(), work.end(), c), work.end());
         }
-        void matchRegex(string pattern, Tokens type, bool setnum) {
+        string matchRegex(string pattern, Tokens type) {
             std::regex rx(pattern);
             std::smatch sm;
             if (std::regex_search(work, sm, rx)) {
                 if (sm.position() == 0) {
                     res.push_back(type);
-                    if (setnum)
-                        num = atoi(work.substr(0, sm.length()).c_str());
+                    string ret = work.substr(0, sm.length()).c_str();
                     work.erase(0, sm.length());
                     iter = 0;
+                    return ret;
                 }
             }
+            return "";
         }
         void matchExact(char c, Tokens type) {
             if (work[0] == c) {
@@ -140,7 +141,10 @@ class Tokenizer {
         }
         void matchExact(char c, Tokens type, bool checknum) {
             if (checknum) {
-                matchRegex("-?[0-9]+", Tokens::Number, true);
+                string ret = matchRegex("-?[0-9]+", Tokens::Number);
+                if (ret != "") {
+                    num = atoi(ret.c_str());
+                }
             }
             matchExact(c, type);
         }
@@ -153,14 +157,29 @@ class Tokenizer {
                 iter = 0;
             }
         }
+        void matchNumber() {
+            string ret = matchRegex("(0b)?[0-1]+", Tokens::Number);
+            if (ret != "") {
+                num = stoi(ret.substr(2), (size_t *)nullptr, 2);
+            }
+            ret = matchRegex("(0x)?[0-9a-f]+", Tokens::Number);
+            if (ret != "") {
+                num = stoi(ret.substr(2), (size_t *)nullptr, 16);
+            }
+            ret = matchRegex("[0-9]+", Tokens::Number);
+            if (ret != "") {
+                num = atoi(ret.c_str());
+            }
+        }
     public:
         std::vector<Tokens> tokenize(string str) {
             res.clear();
             work = str;
             ignore(' ');
             ignore('\t');
+            ignore('_');
             while (work.length() != 0 && iter <= 11) {
-                matchRegex("[0-9]+", Tokens::Number, true);
+                matchNumber(); //[0-9]+, (0x)?[0-9a-f]+, (0b)?[0-1]+
                 matchExact('+', Tokens::Plus);
                 matchExact('-', Tokens::Minus, true);
                 matchExact('&', Tokens::And);
@@ -176,7 +195,7 @@ class Tokenizer {
                 matchExact(";JGE", Tokens::JGE);
                 matchExact(";JLT", Tokens::JLT);
                 matchExact(";JLE", Tokens::JLE);
-                matchRegex(";?JMP", Tokens::JMP, false);
+                matchRegex(";?JMP", Tokens::JMP);
                 matchLabel();
                 iter++;
             }
