@@ -43,7 +43,7 @@ namespace MEMORY {
         }
     //class ROM
         WORD ROM::get(WORD addr) {
-            return registers[switch16(addr)].get();
+            return registers[addr].get();
         }
 
         ROM::ROM() {}
@@ -55,7 +55,7 @@ namespace MEMORY {
         }
     //class RAM
         void RAM::set(WORD addr, WORD d) {
-            registers[switch16(addr)].set(d);
+            registers[addr].set(d);
         }
 
         RAM::RAM() : ROM() {}
