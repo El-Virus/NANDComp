@@ -44,11 +44,24 @@ struct KVP {
     unsigned int value;
 };
 
+struct DS {
+    string key;
+    string value;
+};
+
+struct Macro {
+    string name;
+    std::vector<std::string> instructions;
+    bool compiled;
+    std::vector<DS> arguments;
+};
+
 std::vector<std::string> bits;
 unsigned int linen = 1;
 bool useDec = false;
 std::vector<KVP> labels;
 std::vector<KVP> constants;
+std::vector<Macro> macros;
 
 template <typename T>
 bool isBetween(T min, T x, T max) {
@@ -83,6 +96,14 @@ std::vector<string> cutString(string str, char delim) {
         seglist.push_back(segment);
     }
     return seglist;
+}
+
+bool replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
 }
 
 bool labelExists(string label) {
@@ -186,11 +207,11 @@ class Tokenizer {
             }
         }
         void matchNumber() {
-            string ret = matchRegex("(0b)?[0-1]+", Tokens::Number);
+            string ret = matchRegex("(0b)[0-1]+", Tokens::Number);
             if (ret != "") {
                 num = stoi(ret.substr(2), (size_t *)nullptr, 2);
             }
-            ret = matchRegex("(0x)?[0-9a-fA-F]+", Tokens::Number);
+            ret = matchRegex("(0x)[0-9a-fA-F]+", Tokens::Number);
             if (ret != "") {
                 num = stoi(ret.substr(2), (size_t *)nullptr, 16);
             }
@@ -211,6 +232,7 @@ class Tokenizer {
                 matchExact('+', Tokens::Plus);
                 matchExact('-', Tokens::Minus, true);
                 matchExact('&', Tokens::And);
+                matchExact('|', Tokens::Or);
                 matchExact('=', Tokens::Equal);
                 matchExact('~', Tokens::Tilde);
                 matchExact(',', Tokens::Coma);
@@ -228,7 +250,7 @@ class Tokenizer {
                 iter++;
             }
             if (iter >= 10) {
-                printf("Too many iterations on tokenization on line %i. Check your syntax.", linen);
+                printf("Too many iterations on tokenization on line %i, (%s). Check your syntax.", linen, str.c_str());
                 exit(1);
             }
             return res;
@@ -283,9 +305,9 @@ class GrammarChecker {
                     return true;
                 } else if (work.size() == 2 && (matchExact({Tokens::_SOPER, Tokens::_REG}) || matchExact({Tokens::_REG, Tokens::_JMP}) || (work[0] == Tokens::_REG && work[1] == Tokens::Number && num == -1))) {
                     return true;
-                } else if (work.size() == 3 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG}) || (work[0] == Tokens::_REG && tokens[1] == Tokens::Minus && work[2] == Tokens::_REG) || matchExact({Tokens::_SOPER, Tokens::_REG, Tokens::_JMP}) || (work[0] == Tokens::_REG && tokens[1] == Tokens::Plus && work[2] == Tokens::Number && num == 1) || (work[0] == Tokens::_REG && work[1] == Tokens::Number && num == -1 && work[2] == Tokens::_JMP))) {
+                } else if (work.size() == 3 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG}) || (work[0] == Tokens::_REG && tokens[1] == Tokens::Minus && work[2] == Tokens::_REG) || matchExact({Tokens::_SOPER, Tokens::_REG, Tokens::_JMP}) || (work[0] == Tokens::_REG && tokens[tokens.size()-2] == Tokens::Plus && work[2] == Tokens::Number && num == 1) || (work[0] == Tokens::_REG && work[1] == Tokens::Number && num == -1 && work[2] == Tokens::_JMP))) {
                     return true;
-                } else if (work.size() == 4 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG, Tokens::_JMP}) || (work[0] == Tokens::_REG && tokens[1] == Tokens::Minus && work[2] == Tokens::_REG && work[3] == Tokens::_JMP) || (work[0] == Tokens::_REG && tokens[1] == Tokens::Plus && work[2] == Tokens::Number && num == 1 && work[3] == Tokens::_JMP))) {
+                } else if (work.size() == 4 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG, Tokens::_JMP}) || (work[0] == Tokens::_REG && tokens[1] == Tokens::Minus && work[2] == Tokens::_REG && work[3] == Tokens::_JMP) || (work[0] == Tokens::_REG && tokens[tokens.size()-3] == Tokens::Plus && work[2] == Tokens::Number && num == 1 && work[3] == Tokens::_JMP))) {
                     return true;
                 }
             } else {
@@ -304,13 +326,12 @@ class GrammarChecker {
                     return true;
                 } else if (work.size() == 2 && (matchExact({Tokens::_SOPER, Tokens::_REG}) || matchExact({Tokens::_REG, Tokens::_JMP}) || (matchExact({Tokens::Number, Tokens::_JMP}) && (isBetween((short)-2, num, (short)2))) || (work[0] == Tokens::_REG && work[1] == Tokens::Number && num == -1))) {
                     return true;
-                } else if (work.size() == 3 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG}) || (work[0] == Tokens::_REG && tokens[-2] == Tokens::Minus && work[2] == Tokens::_REG) || matchExact({Tokens::_SOPER, Tokens::_REG, Tokens::_JMP})  || (work[0] == Tokens::_REG && tokens[1] == Tokens::Plus && work[2] == Tokens::Number && num == 1) || (work[0] == Tokens::_REG && work[1] == Tokens::Number && num == -1 && work[2] == Tokens::_JMP))) {
+                } else if (work.size() == 3 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG}) || (work[0] == Tokens::_REG && tokens[tokens.size()-2] == Tokens::Minus && work[2] == Tokens::_REG) || matchExact({Tokens::_SOPER, Tokens::_REG, Tokens::_JMP})  || (work[0] == Tokens::_REG && tokens[tokens.size()-2] == Tokens::Plus && work[2] == Tokens::Number && num == 1) || (work[0] == Tokens::_REG && work[1] == Tokens::Number && num == -1 && work[2] == Tokens::_JMP))) {
                     return true;
-                } else if (work.size() == 4 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG, Tokens::_JMP}), (work[0] == Tokens::_REG && tokens[-3] == Tokens::Minus && work[2] == Tokens::_REG && work[3] == Tokens::_JMP) || (work[0] == Tokens::_REG && tokens[1] == Tokens::Plus && work[2] == Tokens::Number && num == 1 && work[3] == Tokens::_JMP))) {
+                } else if (work.size() == 4 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG, Tokens::_JMP}), (work[0] == Tokens::_REG && tokens[tokens.size()-3] == Tokens::Minus && work[2] == Tokens::_REG && work[3] == Tokens::_JMP) || (work[0] == Tokens::_REG && tokens[tokens.size()-3] == Tokens::Plus && work[2] == Tokens::Number && num == 1 && work[3] == Tokens::_JMP))) {
                     return true;
                 }
             }
-
             return false;
         }
 };
@@ -392,7 +413,7 @@ class CodeGenerator {
                 }
             }
             if (vecContains(twork, Tokens::A) && vecContains(twork, Tokens::AM)) {
-                printf("Can't use A and A* as operators on line%i.", linen);
+                printf("Can't use A and A* as operators on line %i.", linen);
                 exit(1);
             }
             if (vecContains(twork, Tokens::AM)) {
@@ -478,8 +499,11 @@ class CodeGenerator {
 };
 
 void parseLine(std::string line) {
-    if (line[0] == '#') {
-        return;
+    for (unsigned int i = 0; i < macros.size(); i++) {
+        if (line == macros[i].name) {
+            bits.insert(std::end(bits), std::begin(macros[i].instructions), std::end(macros[i].instructions));
+            return;
+        }
     }
     Tokenizer tokenizer;
     std::vector<Tokens> tokens = tokenizer.tokenize(line);
@@ -488,7 +512,7 @@ void parseLine(std::string line) {
         CodeGenerator codegenerator;
         codegenerator.generate(tokens, tokenizer.simplify(), tokenizer.getNum());
     } else {
-        printf("Grammar Check failed on line %u. Check your syntax.", linen);
+        printf("Grammar Check failed on line %u, (%s). Check your syntax.", linen, line.c_str());
         exit(1);
     }
 }
@@ -496,13 +520,6 @@ void parseLine(std::string line) {
 void firstPass(std::vector<string> *src) {
     for (unsigned int i = 0; i < src->size(); i++) {
         if ((*src)[i][0] == '#') {
-            src->erase(src->begin() + i);
-            i--;
-        }
-    }
-    for (unsigned int i = 0; i < src->size(); i++) {
-        if ((*src)[i].substr(0, 5) == "LABEL") {
-            labels.push_back({cutString((*src)[i], ' ')[1], i});
             src->erase(src->begin() + i);
             i--;
         }
@@ -523,11 +540,155 @@ void firstPass(std::vector<string> *src) {
             i--;
         }
     }
+    for (unsigned int i = 0; i < src->size(); i++) {
+        if ((*src)[i][0] == '%') {
+            string name = (*src)[i];
+            name.erase(name.begin());
+            bool containsArgs = false;
+            std::vector<DS> args;
+            std::regex rx("^[A-Z_]+$");
+            std::smatch sm;
+            if (!std::regex_match(name, sm, rx)) {
+                std::regex ry("^[A-Z_]+( \\$[a-z]+)+$");
+                if (!std::regex_match(name, sm, ry)) {
+                    printf("Macro definition error. Check your syntax.");
+                    exit(1);
+                } else {
+                    containsArgs = true;
+                    std::vector<string> arguments = cutString(name, ' ');
+                    arguments.erase(arguments.begin());
+                    for (unsigned int j = 0; j < arguments.size(); j++) {
+                        arguments[j].erase(std::remove(arguments[j].begin(), arguments[j].end(), '$'), arguments[j].end());
+                    }
+                    for (unsigned int j = 0; j < arguments.size(); j++) {
+                        args.push_back({arguments[j], ""});
+                    }
+                }
+            }
+            std::vector<std::string> macro;
+            src->erase(src->begin() + i);
+            while ((*src)[i] != "%%") {
+                macro.push_back((*src)[i]);
+                src->erase(src->begin() + i);
+            }
+            src->erase(src->begin() + i);
+            bool canPrecompile = true;
+            if (containsArgs) {
+                canPrecompile = false;
+            } else {
+                for (unsigned int i = 0; i < macro.size(); i++) {
+                    if (macro[i].substr(0, 5) == "LABEL") {
+                        canPrecompile = false;
+                    }
+                }
+            }
+            if (canPrecompile) {
+                for (unsigned int i = 0; i < macro.size(); i++) {
+                    parseLine(macro[i]);
+                }
+                macros.push_back({name, bits, true, {}});
+                bits.clear();
+            } else {
+                macros.push_back({cutString(name, ' ')[0], macro, false, args});
+            }
+            
+            i--;
+        }
+    }
+}
+
+void processLabels(std::vector<string> *src) {
+    unsigned int premOff = 0;
+    for (unsigned int i = 0; i < src->size(); i++) {
+        for (unsigned int j = 0; j < macros.size(); j++) {
+            if ((*src)[i] == macros[j].name) {
+                premOff += macros[j].instructions.size() - 1;
+            }
+        }
+        if ((*src)[i].substr(0, 5) == "LABEL") {
+            labels.push_back({cutString((*src)[i], ' ')[1], i + premOff});
+            src->erase(src->begin() + i);
+            i--;
+        }
+    }
+}
+
+void expandUncompiledMacros(std::vector<string> *src) {
+    while (true) {
+        firstPass(src);
+        for (unsigned int i = 0; i < src->size(); i++) {
+            for (unsigned int j = 0; j < macros.size(); j++) {
+                if ((*src)[i] == macros[j].name && !macros[j].compiled) {
+                    src->erase(src->begin() + i);
+                    src->insert(std::begin(*src) + i, std::begin(macros[j].instructions), std::end(macros[j].instructions));
+                    i--;
+                }
+            }
+        }
+        bool breakLoop = true;
+        for (unsigned int i = 0; i < src->size(); i++) {
+            for (unsigned int j = 0; j < macros.size(); j++) {
+                if ((*src)[i] == macros[j].name && !macros[j].compiled) {
+                    breakLoop = false;
+                }
+            }
+        }
+        if (breakLoop)
+            break;
+    }
+    while (true) {
+        for (unsigned int i = 0; i < src->size(); i++) {
+            for (unsigned int j = 0; j < macros.size(); j++) {
+                if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].compiled) {
+                    string work = (*src)[i].substr(cutString((*src)[i], ' ')[0].length());
+                    src->erase(src->begin() + i);
+                    std::regex rx(string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) + "}$"); //TODO: Add suport for constants and labels
+                    std::smatch sm;
+                    if (!std::regex_match(work, sm, rx)) {
+                        printf("Macro missuse. Check your syntax.");
+                        exit(1);
+                    }
+                    work = work.substr(1);
+                    std::vector<string> arguments = cutString(work, ' ');
+                    Macro macro = macros[j];
+                    for (unsigned int k = 0; k < arguments.size(); k++) {
+                        macro.arguments[k].value = arguments[k];
+                    }
+                    std::vector<string> instructions = macro.instructions;
+                    for (unsigned int k = 0; k < instructions.size(); k++) {
+                        for (unsigned int l = 0; l < macro.arguments.size(); l++) {
+                            replace(instructions[k], "$" + macro.arguments[l].key, macro.arguments[l].value);
+                        }
+                    }
+                    src->insert(std::begin(*src) + i, std::begin(instructions), std::end(instructions));
+                    i--;
+                }
+            }
+        }
+        for (unsigned int i = 0; i < src->size(); i++) {
+            for (unsigned int j = 0; j < macros.size(); j++) {
+                if ((*src)[i] == macros[j].name && !macros[j].compiled) {
+                    expandUncompiledMacros(src);
+                }
+            }
+        }
+        bool breakLoop = true;
+        for (unsigned int i = 0; i < src->size(); i++) {
+            for (unsigned int j = 0; j < macros.size(); j++) {
+                if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].compiled) {
+                    breakLoop = false;
+                }
+            }
+        }
+        if (breakLoop)
+            break;
+    }
 }
 
 void parseSource(std::vector<string> src) {
-    firstPass(&src);
-    for (SU i = 0; i < src.size(); i++) {
+    expandUncompiledMacros(&src);
+    processLabels(&src);
+    for (unsigned int i = 0; i < src.size(); i++) {
         parseLine(src[i]);
         linen++;
     }
@@ -536,6 +697,16 @@ void parseSource(std::vector<string> src) {
     } else {
         bits.push_back("1100000000000000");
     }
+}
+
+std::fstream openFile(string filename, bool ret = true) {
+    std::fstream file;
+    file.open(filename);
+    if (!file.is_open() && ret) {
+        printf("Could not open file %s.", filename.c_str());
+        exit(1);
+    }
+    return file;
 }
 
 int main(int argc, char **argv) {
@@ -550,19 +721,25 @@ int main(int argc, char **argv) {
             useDec = true;
         filename = argv[2];
     }
+    
     std::vector<string> src;
-    std::fstream source;
-    source.open(filename);
-    if (!source.is_open()) {
-        printf("Could not open source file %s.", filename.c_str());
-        return 1;
-    }
+    std::fstream source = openFile(filename);
     std::string line;
     while(std::getline(source, line)){  //read data from file object and put it into string.
         if(line.size())
             src.push_back(line);
     }
     source.close();
+    std::fstream rawMacrosFile = openFile("macros.src");
+    if (rawMacrosFile) {
+        std::vector<string> rawMacros;
+        std::string line;
+        while(std::getline(rawMacrosFile, line)){  //read data from file object and put it into string.
+            if(line.size())
+                rawMacros.push_back(line);
+        }
+        firstPass(&rawMacros);
+    }
 
     parseSource(src);
 

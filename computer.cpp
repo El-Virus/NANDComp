@@ -9,7 +9,6 @@ namespace COMPUTER {
     //class Computer
         void Computer::run()  {
             while ((AND(BITMAN::getBitFromWord(ROM.get(pc.get()), 14), BITMAN::getBitFromWord(ROM.get(pc.get()), MISC::CI)) != true)) {
-                //printf("%i:%i=%s\n", BITMAN::getBitFromWord(ROM.get(pc.get()), MISC::CI), BITMAN::getBitFromWord(ROM.get(pc.get()), 14), std::bitset<16>(ROM.get(pc.get())).to_string().c_str());
                 tick();
             }
         }
