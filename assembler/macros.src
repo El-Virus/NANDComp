@@ -1,0 +1,161 @@
+&SP = 0
+
+%INIT_STACK
+A = 0x100
+D = A
+A = SP
+*A = D
+%%
+
+%PUSH_D
+A = SP
+*A = *A + 1
+A = *A - 1
+*A = D
+%%
+
+%POP_D
+A = SP
+*A = *A - 1
+A = *A
+D = *A
+%%
+
+%POP_A
+A = SP
+*A = *A -1
+A = *A
+A = *A
+%%
+
+%PUSH_VALUE $value
+A = $value
+D = A
+PUSH_D
+%%
+
+%ADD
+POP_D
+POP_A
+D = D + A
+PUSH_D
+%%
+
+%SUB
+POP_D
+POP_A
+D = A - D
+PUSH_D
+%%
+
+%NEG
+POP_D
+D = -D
+PUSH_D
+%%
+
+%AND
+POP_D
+POP_A
+D = D & A
+PUSH_D
+%%
+
+%OR
+POP_D
+POP_A
+D = D | A
+PUSH_D
+%%
+
+%EQ
+POP_D
+POP_A
+D = D - A
+A = ne
+D ;JNE
+D = -1
+PUSH_D
+A = end
+JMP
+LABEL ne
+D = 0
+PUSH_D
+LABEL end
+%%
+
+%GT
+POP_D
+POP_A
+D = A - D
+A = ne
+D ;JGT
+D = 0
+PUSH_D
+A = end
+JMP
+LABEL ne
+D = -1
+PUSH_D
+LABEL end
+%%
+
+%LT
+POP_D
+POP_A
+D = A - D
+A = ne
+D ;JLT
+D = 0
+PUSH_D
+A = end
+JMP
+LABEL ne
+D = -1
+PUSH_D
+LABEL end
+%%
+
+%NOT
+POP_D
+D = ~D
+PUSH_D
+%%
+
+%GOTO $label
+A = $label
+JMP
+%%
+
+%IF_GOTO $label
+POP_D
+A = end
+D ;JEQ
+A = $label
+JMP
+LABEL end
+%%
+
+%PUSH_MEMORY
+POP_A
+D = *A
+PUSH_D
+%%
+
+%POP_MEMORY
+POP_D
+POP_A
+*A = D
+%%
+
+%PUSH_STATIC $address
+A = $address
+D = *A
+PUSH_D
+%%
+
+%POP_STATIC $address
+POP_D
+A = $address
+*A = D
+%%
