@@ -52,7 +52,7 @@ struct DS {
 struct Macro {
     string name;
     std::vector<std::string> instructions;
-    bool compiled;
+    bool shouldBeExpanded;
     std::vector<DS> arguments;
 };
 
@@ -79,7 +79,7 @@ std::string getSubStrBAChar(std::string const& str, const char chr, bool before)
         if (before) {
             return str.substr(0, pos);
         } else {
-            return str.substr(pos);
+            return str.substr(pos + 1);
         }
     } else {
         return str;
@@ -140,6 +140,56 @@ unsigned int getConstant(string constant) {
         }
     }
     return 0;
+}
+
+string getRegex(string pattern, string str) {
+    std::regex rx(pattern);
+    std::smatch sm;
+    if (std::regex_search(str, sm, rx)) {
+        if (sm.position() == 0) {
+            return str.substr(0, sm.length()).c_str();
+        }
+    }
+    return "";
+}
+
+int getHBDNum(string str) {
+    string ret = getRegex("(0b)[0-1]+", str);
+    if (ret != "") {
+        return stoi(ret.substr(2), (size_t *)nullptr, 2);
+    }
+    ret = getRegex("(0x)[0-9a-fA-F]+", str);
+    if (ret != "") {
+        return stoi(ret.substr(2), (size_t *)nullptr, 16);
+    }
+    ret = getRegex("-?[0-9]+", str);
+    if (ret != "") {
+        return atoi(ret.c_str());
+    }
+    return 0;
+}
+
+bool stringContains(string container, string containee) {
+    return (container.find(containee) != std::string::npos);
+}
+
+bool vectorContains(std::vector<string> vec, string containee) {
+    for (unsigned int i = 0; i < vec.size(); i++) {
+        if (stringContains(vec[i], containee)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isNumber(char c) {
+    string str;
+    str += c;
+    string ret = getRegex("[0-9]+", str);
+    if (ret != "") {
+        return true;
+    }
+    return false;
 }
 
 class Tokenizer {
@@ -210,14 +260,16 @@ class Tokenizer {
             string ret = matchRegex("(0b)[0-1]+", Tokens::Number);
             if (ret != "") {
                 num = stoi(ret.substr(2), (size_t *)nullptr, 2);
-            }
-            ret = matchRegex("(0x)[0-9a-fA-F]+", Tokens::Number);
-            if (ret != "") {
-                num = stoi(ret.substr(2), (size_t *)nullptr, 16);
-            }
-            ret = matchRegex("[0-9]+", Tokens::Number);
-            if (ret != "") {
-                num = atoi(ret.c_str());
+            } else {
+                ret = matchRegex("(0x)[0-9a-fA-F]+", Tokens::Number);
+                if (ret != "") {
+                    num = stoi(ret.substr(2), (size_t *)nullptr, 16);
+                } else {
+                    ret = matchRegex("[0-9]+", Tokens::Number);
+                    if (ret != "") {
+                        num = atoi(ret.c_str());
+                    }
+                }
             }
         }
     public:
@@ -505,6 +557,10 @@ void parseLine(std::string line) {
             return;
         }
     }
+    if (line.substr(0, 3) == "\\ci") {
+        bits.push_back(line.substr(3));
+        return;
+    }
     Tokenizer tokenizer;
     std::vector<Tokens> tokens = tokenizer.tokenize(line);
     GrammarChecker grammarchecker;
@@ -529,13 +585,13 @@ void firstPass(std::vector<string> *src) {
             string str = (*src)[i];
             str.erase(str.begin());
             str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
-            std::regex rx("^[a-zA-Z]+=[0-9]+$");
+            std::regex rx("^[a-zA-Z]+=(0b|0x)?[0-9a-fA-F]+$");
             std::smatch sm;
             if (!std::regex_match(str, sm, rx)) {
                 printf("Constant definition error. Check your syntax.");
                 exit(1);
             }
-            constants.push_back({getSubStrBAChar(str, '=', true), (unsigned int)abs(atoi(getSubStrBAChar(str, '=', false).c_str()))});
+            constants.push_back({getSubStrBAChar(str, '=', true), (unsigned int)getHBDNum(getSubStrBAChar(str, '=', false).c_str())});
             src->erase(src->begin() + i);
             i--;
         }
@@ -572,24 +628,36 @@ void firstPass(std::vector<string> *src) {
                 src->erase(src->begin() + i);
             }
             src->erase(src->begin() + i);
-            bool canPrecompile = true;
+            bool canPrecompileWhole = true;
             if (containsArgs) {
-                canPrecompile = false;
+                canPrecompileWhole = false;
             } else {
-                for (unsigned int i = 0; i < macro.size(); i++) {
-                    if (macro[i].substr(0, 5) == "LABEL") {
-                        canPrecompile = false;
+                for (unsigned int j = 0; j < macro.size(); j++) {
+                    if (macro[j].substr(0, 5) == "LABEL") {
+                        canPrecompileWhole = false;
                     }
                 }
             }
-            if (canPrecompile) {
-                for (unsigned int i = 0; i < macro.size(); i++) {
-                    parseLine(macro[i]);
+            if (canPrecompileWhole) {
+                for (unsigned int j = 0; j < macro.size(); j++) {
+                    parseLine(macro[j]);
                 }
                 macros.push_back({name, bits, true, {}});
                 bits.clear();
             } else {
-                macros.push_back({cutString(name, ' ')[0], macro, false, args});
+                std::vector<string> instructions;
+                for (unsigned int j = 0; j < macro.size(); j++) {
+                    macro[j].erase(std::remove(macro[j].begin(), macro[j].end(), ' '), macro[j].end());
+                    if (!(stringContains(macro[j], "LABEL") || stringContains(macro[j], "$") || (macro[j][0] == 'A' && macro[j][1] == '=' && !isNumber(macro[j][2])))) {
+                        parseLine(macro[j]);
+                        instructions.push_back("\\ci" + bits[0]);
+                        bits.clear();
+                    } else {
+                        instructions.push_back(macro[j]);
+                    }
+                }
+                
+                macros.push_back({cutString(name, ' ')[0], instructions, false, args});
             }
             
             i--;
@@ -618,7 +686,7 @@ void expandUncompiledMacros(std::vector<string> *src) {
         firstPass(src);
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
-                if ((*src)[i] == macros[j].name && !macros[j].compiled) {
+                if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded) {
                     src->erase(src->begin() + i);
                     src->insert(std::begin(*src) + i, std::begin(macros[j].instructions), std::end(macros[j].instructions));
                     i--;
@@ -628,7 +696,7 @@ void expandUncompiledMacros(std::vector<string> *src) {
         bool breakLoop = true;
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
-                if ((*src)[i] == macros[j].name && !macros[j].compiled) {
+                if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded) {
                     breakLoop = false;
                 }
             }
@@ -639,10 +707,10 @@ void expandUncompiledMacros(std::vector<string> *src) {
     while (true) {
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
-                if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].compiled) {
+                if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].shouldBeExpanded) {
                     string work = (*src)[i].substr(cutString((*src)[i], ' ')[0].length());
                     src->erase(src->begin() + i);
-                    std::regex rx(string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) + "}$"); //TODO: Add suport for constants and labels
+                    std::regex rx(string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) + "}$");
                     std::smatch sm;
                     if (!std::regex_match(work, sm, rx)) {
                         printf("Macro missuse. Check your syntax.");
@@ -667,7 +735,7 @@ void expandUncompiledMacros(std::vector<string> *src) {
         }
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
-                if ((*src)[i] == macros[j].name && !macros[j].compiled) {
+                if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded) {
                     expandUncompiledMacros(src);
                 }
             }
@@ -675,7 +743,7 @@ void expandUncompiledMacros(std::vector<string> *src) {
         bool breakLoop = true;
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
-                if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].compiled) {
+                if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].shouldBeExpanded) {
                     breakLoop = false;
                 }
             }
@@ -738,9 +806,17 @@ int main(int argc, char **argv) {
             if(line.size())
                 rawMacros.push_back(line);
         }
+        if (vectorContains(rawMacros, "\\")) {
+            printf("\\ In code.");
+            return 1;
+        }
         firstPass(&rawMacros);
     }
 
+    if (vectorContains(src, "\\")) {
+        printf("\\ In code.");
+        return 1;
+    }
     parseSource(src);
 
     std::ofstream code(getSubStrBAChar(string(filename), '.', true) + ".bit", std::ofstream::trunc);
