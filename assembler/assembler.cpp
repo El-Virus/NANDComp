@@ -81,9 +81,8 @@ std::string getSubStrBAChar(std::string const& str, const char chr, bool before)
         } else {
             return str.substr(pos + 1);
         }
-    } else {
-        return str;
     }
+    return str;
 }
 
 std::vector<string> cutString(string str, char delim) {
@@ -91,8 +90,7 @@ std::vector<string> cutString(string str, char delim) {
     std::string segment;
     std::vector<std::string> seglist;
 
-    while(std::getline(ss, segment, delim))
-    {
+    while(std::getline(ss, segment, delim)) {
         seglist.push_back(segment);
     }
     return seglist;
@@ -108,36 +106,32 @@ bool replace(std::string& str, const std::string& from, const std::string& to) {
 
 bool labelExists(string label) {
     for (SU i = 0; i < labels.size(); i++) {
-        if (labels[i].key == label) {
+        if (labels[i].key == label)
             return true;
-        }
     }
     return false;
 }
 
 unsigned int getLabel(string label) {
     for (SU i = 0; i < labels.size(); i++) {
-        if (labels[i].key == label) {
+        if (labels[i].key == label)
             return labels[i].value;
-        }
     }
     return 0;
 }
 
 bool constantExists(string constant) {
     for (SU i = 0; i < constants.size(); i++) {
-        if (constants[i].key == constant) {
+        if (constants[i].key == constant)
             return true;
-        }
     }
     return false;
 }
 
 unsigned int getConstant(string constant) {
     for (SU i = 0; i < constants.size(); i++) {
-        if (constants[i].key == constant) {
+        if (constants[i].key == constant)
             return constants[i].value;
-        }
     }
     return 0;
 }
@@ -146,26 +140,25 @@ string getRegex(string pattern, string str) {
     std::regex rx(pattern);
     std::smatch sm;
     if (std::regex_search(str, sm, rx)) {
-        if (sm.position() == 0) {
+        if (sm.position() == 0)
             return str.substr(0, sm.length()).c_str();
-        }
     }
     return "";
 }
 
 int getHBDNum(string str) {
     string ret = getRegex("(0b)[0-1]+", str);
-    if (ret != "") {
+    if (ret != "")
         return stoi(ret.substr(2), (size_t *)nullptr, 2);
-    }
+    
     ret = getRegex("(0x)[0-9a-fA-F]+", str);
-    if (ret != "") {
+    if (ret != "")
         return stoi(ret.substr(2), (size_t *)nullptr, 16);
-    }
+    
     ret = getRegex("-?[0-9]+", str);
-    if (ret != "") {
+    if (ret != "")
         return atoi(ret.c_str());
-    }
+    
     return 0;
 }
 
@@ -175,20 +168,17 @@ bool stringContains(string container, string containee) {
 
 bool vectorContains(std::vector<string> vec, string containee) {
     for (unsigned int i = 0; i < vec.size(); i++) {
-        if (stringContains(vec[i], containee)) {
+        if (stringContains(vec[i], containee))
             return true;
-        }
     }
     return false;
 }
 
 bool isNumber(char c) {
-    string str;
-    str += c;
+    string str(1, c);
     string ret = getRegex("[0-9]+", str);
-    if (ret != "") {
+    if (ret != "")
         return true;
-    }
     return false;
 }
 
@@ -225,9 +215,8 @@ class Tokenizer {
         }
         void matchExact(string c, Tokens type) {
             for (SU i = 0; i < c.size(); i++) {
-                if (work[i] != c[i]) {
+                if (work[i] != c[i])
                     return;
-                }
             }
             res.push_back(type);
             work.erase(0, c.size());
@@ -236,9 +225,8 @@ class Tokenizer {
         void matchExact(char c, Tokens type, bool checknum) {
             if (checknum) {
                 string ret = matchRegex("-?[0-9]+", Tokens::Number);
-                if (ret != "") {
+                if (ret != "")
                     num = atoi(ret.c_str());
-                }
             }
             matchExact(c, type);
         }
@@ -266,9 +254,8 @@ class Tokenizer {
                     num = stoi(ret.substr(2), (size_t *)nullptr, 16);
                 } else {
                     ret = matchRegex("[0-9]+", Tokens::Number);
-                    if (ret != "") {
+                    if (ret != "")
                         num = atoi(ret.c_str());
-                    }
                 }
             }
         }
@@ -280,7 +267,7 @@ class Tokenizer {
             ignore('\t');
             ignore('_');
             while (work.length() != 0 && iter <= 11) {
-                matchNumber(); //[0-9]+, (0x)?[0-9a-f]+, (0b)?[0-1]+
+                matchNumber();
                 matchExact('+', Tokens::Plus);
                 matchExact('-', Tokens::Minus, true);
                 matchExact('&', Tokens::And);
@@ -301,7 +288,7 @@ class Tokenizer {
                 matchLabelConstant();
                 iter++;
             }
-            if (iter >= 10) {
+            if (iter >= 11) {
                 printf("Too many iterations on tokenization on line %i, (%s). Check your syntax.", linen, str.c_str());
                 exit(1);
             }
@@ -337,9 +324,8 @@ class GrammarChecker {
     private:
         bool matchExact(std::vector<Tokens> c) {
             for (SU i = 0; i < c.size(); i++) {
-                if (work[i] != c[i]) {
+                if (work[i] != c[i])
                     return false;
-                }
             }
             return true;
         }
@@ -347,9 +333,8 @@ class GrammarChecker {
         bool check(std::vector<Tokens> tokens, std::vector<Tokens> stokens, short num) {
             work = stokens;
             //Exception: A = Number
-            if (tokens.size() == 3 && tokens[0] == Tokens::A && tokens[1] == Tokens::Equal && tokens[2] == Tokens::Number && isBetween((short)-2, num, (short)32765)) {
+            if (tokens.size() == 3 && tokens[0] == Tokens::A && tokens[1] == Tokens::Equal && tokens[2] == Tokens::Number && isBetween((short)-2, num, (short)32765))
                 return true;
-            }
 
             if (!vecContains(work, Tokens::Equal)) {
                 //Operations without Equal
@@ -366,13 +351,12 @@ class GrammarChecker {
                 //Equal Operations
                 //Let's simplify
                 for (SU i = 0; i <= 1; i++) {
-                    if (work[0] == Tokens::_REG && work[1] == Tokens::Coma && work[2] == Tokens::_REG) {
+                    if (work[0] == Tokens::_REG && work[1] == Tokens::Coma && work[2] == Tokens::_REG)
                         work.erase(std::next(work.begin(), 1), std::next(work.begin(), 3));
-                    }
                 }
-                if (!(work[0] == Tokens::_REG && work[1] == Tokens::Equal)) {
+                if (!(work[0] == Tokens::_REG && work[1] == Tokens::Equal))
                     return false;
-                }
+
                 work.erase(std::next(work.begin(), 0), std::next(work.begin(), 2));
                 if (work.size() == 1 && ((work[0] == Tokens::_REG) || ((work[0] == Tokens::Number) && (isBetween((short)-2, num, (short)2))))) {
                     return true;
@@ -427,9 +411,8 @@ class CodeGenerator {
         }
         bool matchExact(std::vector<Tokens> c) {
             for (SU i = 0; i < c.size(); i++) {
-                if (twork[i] != c[i]) {
+                if (twork[i] != c[i])
                     return false;
-                }
             }
             return true;
         }
@@ -452,15 +435,17 @@ class CodeGenerator {
             work.b[CI] = 1; //Set Operation Bit
             if (vecContains(stwork, Tokens::Equal)) {
                 for (SU i = 0; i <= 2; i++) {
-                    if (stwork[0] == Tokens::_REG && stwork[1] == Tokens::Coma && stwork[2] == Tokens::_REG) {
-                        pullDest(twork[0]);
-                        twork.erase(std::next(twork.begin(), 0), std::next(twork.begin(), 2));
-                        stwork.erase(std::next(stwork.begin(), 0), std::next(stwork.begin(), 2));
-                    } else if(stwork[0] == Tokens::_REG && stwork[1] == Tokens::Equal) {
-                        pullDest(twork[0]);
-                        twork.erase(std::next(twork.begin(), 0), std::next(twork.begin(), 2));
-                        stwork.erase(std::next(stwork.begin(), 0), std::next(stwork.begin(), 2));
-                        break;
+                    if (stwork[0] == Tokens::_REG) {
+                        if (stwork[1] == Tokens::Coma && stwork[2] == Tokens::_REG) {
+                            pullDest(twork[0]);
+                            twork.erase(std::next(twork.begin(), 0), std::next(twork.begin(), 2));
+                            stwork.erase(std::next(stwork.begin(), 0), std::next(stwork.begin(), 2));
+                        } else if(stwork[1] == Tokens::Equal) {
+                            pullDest(twork[0]);
+                            twork.erase(std::next(twork.begin(), 0), std::next(twork.begin(), 2));
+                            stwork.erase(std::next(stwork.begin(), 0), std::next(stwork.begin(), 2));
+                            break;
+                        }
                     }
                 }
             }
@@ -538,9 +523,8 @@ class CodeGenerator {
                     work.b[NX] = 1;
                     work.b[NY] = 1;
                 }
-                if (!(twork[1] == Tokens::And || matchExact({Tokens::D, Tokens::Plus, Tokens::A}))) {
+                if (!(twork[1] == Tokens::And || matchExact({Tokens::D, Tokens::Plus, Tokens::A})))
                     work.b[NO] = 1;
-                }
             }
             if (useDec) {
                 bits.push_back(std::to_string(composeWord(work)));
@@ -633,9 +617,8 @@ void firstPass(std::vector<string> *src) {
                 canPrecompileWhole = false;
             } else {
                 for (unsigned int j = 0; j < macro.size(); j++) {
-                    if (macro[j].substr(0, 5) == "LABEL") {
+                    if (macro[j].substr(0, 5) == "LABEL")
                         canPrecompileWhole = false;
-                    }
                 }
             }
             if (canPrecompileWhole) {
@@ -669,9 +652,8 @@ void processLabels(std::vector<string> *src) {
     unsigned int premOff = 0;
     for (unsigned int i = 0; i < src->size(); i++) {
         for (unsigned int j = 0; j < macros.size(); j++) {
-            if ((*src)[i] == macros[j].name) {
+            if ((*src)[i] == macros[j].name)
                 premOff += macros[j].instructions.size() - 1;
-            }
         }
         if ((*src)[i].substr(0, 5) == "LABEL") {
             labels.push_back({cutString((*src)[i], ' ')[1], i + premOff});
@@ -696,9 +678,8 @@ void expandUncompiledMacros(std::vector<string> *src) {
         bool breakLoop = true;
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
-                if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded) {
+                if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded)
                     breakLoop = false;
-                }
             }
         }
         if (breakLoop)
@@ -735,17 +716,15 @@ void expandUncompiledMacros(std::vector<string> *src) {
         }
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
-                if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded) {
+                if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded)
                     expandUncompiledMacros(src);
-                }
             }
         }
         bool breakLoop = true;
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
-                if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].shouldBeExpanded) {
+                if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].shouldBeExpanded)
                     breakLoop = false;
-                }
             }
         }
         if (breakLoop)
