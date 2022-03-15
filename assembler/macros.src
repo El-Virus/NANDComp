@@ -75,13 +75,12 @@ D = D - A
 A = ne
 D ;JNE
 D = -1
-PUSH_D
 A = end
 JMP
 LABEL ne
 D = 0
-PUSH_D
 LABEL end
+PUSH_D
 %%
 
 %GT
@@ -91,13 +90,12 @@ D = A - D
 A = ne
 D ;JGT
 D = 0
-PUSH_D
 A = end
 JMP
 LABEL ne
 D = -1
-PUSH_D
 LABEL end
+PUSH_D
 %%
 
 %LT
@@ -107,13 +105,12 @@ D = A - D
 A = ne
 D ;JLT
 D = 0
-PUSH_D
 A = end
 JMP
 LABEL ne
 D = -1
-PUSH_D
 LABEL end
+PUSH_D
 %%
 
 %NOT
