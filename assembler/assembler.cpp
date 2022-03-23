@@ -58,6 +58,7 @@ struct Macro {
 
 std::vector<std::string> bits;
 unsigned int linen = 1;
+string currfile;
 bool useDec = false;
 std::vector<KVP> labels;
 std::vector<KVP> constants;
@@ -182,6 +183,11 @@ bool isNumber(char c) {
     return false;
 }
 
+void errExit(string message, string line, int code = 1) {
+    printf("%s on [%s](expanding includes), (%s). Check your Syntax.", message.c_str(), line.c_str(), currfile.c_str());
+    exit(code);
+}
+
 class Tokenizer {
     private:
         string work;
@@ -289,8 +295,7 @@ class Tokenizer {
                 iter++;
             }
             if (iter >= 11) {
-                printf("Too many iterations on tokenization on line %i, (%s). Check your syntax.", linen, str.c_str());
-                exit(1);
+                errExit("Too many iterations on tokenization", str);
             }
             return res;
         }
@@ -450,8 +455,7 @@ class CodeGenerator {
                 }
             }
             if (vecContains(twork, Tokens::A) && vecContains(twork, Tokens::AM)) {
-                printf("Can't use A and A* as operators on line %i.", linen);
-                exit(1);
+                errExit("Can't use A and A* as operators", " ~line (without special lines)" + linen);
             }
             if (vecContains(twork, Tokens::AM)) {
                 work.b[SM] = 1;
@@ -552,8 +556,7 @@ void parseLine(std::string line) {
         CodeGenerator codegenerator;
         codegenerator.generate(tokens, tokenizer.simplify(), tokenizer.getNum());
     } else {
-        printf("Grammar Check failed on line %u, (%s). Check your syntax.", linen, line.c_str());
-        exit(1);
+        errExit("Grammar Check failed", line);
     }
 }
 
@@ -572,8 +575,7 @@ void firstPass(std::vector<string> *src) {
             std::regex rx("^[a-zA-Z]+=(0b|0x)?[0-9a-fA-F]+$");
             std::smatch sm;
             if (!std::regex_match(str, sm, rx)) {
-                printf("Constant definition error. Check your syntax.");
-                exit(1);
+                errExit("Constant definition error", (*src)[i]);
             }
             constants.push_back({getSubStrBAChar(str, '=', true), (unsigned int)getHBDNum(getSubStrBAChar(str, '=', false).c_str())});
             src->erase(src->begin() + i);
@@ -591,8 +593,7 @@ void firstPass(std::vector<string> *src) {
             if (!std::regex_match(name, sm, rx)) {
                 std::regex ry("^[A-Z_]+( \\$[a-z]+)+$");
                 if (!std::regex_match(name, sm, ry)) {
-                    printf("Macro definition error. Check your syntax.");
-                    exit(1);
+                    errExit("Macro definition error", (*src)[i]);
                 } else {
                     containsArgs = true;
                     std::vector<string> arguments = cutString(name, ' ');
@@ -648,6 +649,43 @@ void firstPass(std::vector<string> *src) {
     }
 }
 
+std::fstream openFile(string filename, bool ret = true) {
+    std::fstream file;
+    file.open(filename);
+    if (!file.is_open() && ret) {
+        printf("Could not open file %s.", filename.c_str());
+        exit(1);
+    }
+    return file;
+}
+
+std::vector<string> fileFirstPass(string filename, bool ret = true) {
+    std::fstream file = openFile(filename, ret);
+    if (file.is_open()) {
+        std::vector<string> data;
+        std::string line;
+        while(std::getline(file, line)){  //read data from file object and put it into string.
+            if(line.size())
+                data.push_back(line);
+        }
+        file.close();
+        if (vectorContains(data, "\\")) {
+            printf("\\ In file: %s.", filename.c_str());
+            exit(1);
+        }
+        string lcrf = currfile;
+        currfile = filename;
+        firstPass(&data);
+        currfile = lcrf;
+        return data;
+    } else if (ret) {
+        printf("Could not open source file %s.", filename.c_str());
+        exit(1);
+    } else {
+        return {};
+    }
+}
+
 void processLabels(std::vector<string> *src) {
     unsigned int premOff = 0;
     for (unsigned int i = 0; i < src->size(); i++) {
@@ -694,8 +732,7 @@ void expandUncompiledMacros(std::vector<string> *src) {
                     std::regex rx(string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) + "}$");
                     std::smatch sm;
                     if (!std::regex_match(work, sm, rx)) {
-                        printf("Macro missuse. Check your syntax.");
-                        exit(1);
+                        errExit("Macro missuse", (*src)[i]);
                     }
                     work = work.substr(1);
                     std::vector<string> arguments = cutString(work, ' ');
@@ -732,7 +769,20 @@ void expandUncompiledMacros(std::vector<string> *src) {
     }
 }
 
+void handleIncludes(std::vector<string> *src) {
+    for (unsigned int i = 0; i < src->size(); i++) {
+        if ((*src)[i][0] == '@') {
+            string filename = (*src)[i].substr(1);
+            src->erase(src->begin() + i);
+            std::vector<string> include = fileFirstPass(filename);
+            src->insert(std::begin(*src) + i, std::begin(include), std::end(include));
+            i--;
+        }
+    }
+}
+
 void parseSource(std::vector<string> src) {
+    handleIncludes(&src);
     expandUncompiledMacros(&src);
     processLabels(&src);
     for (unsigned int i = 0; i < src.size(); i++) {
@@ -744,16 +794,6 @@ void parseSource(std::vector<string> src) {
     } else {
         bits.push_back("1100000000000000");
     }
-}
-
-std::fstream openFile(string filename, bool ret = true) {
-    std::fstream file;
-    file.open(filename);
-    if (!file.is_open() && ret) {
-        printf("Could not open file %s.", filename.c_str());
-        exit(1);
-    }
-    return file;
 }
 
 int main(int argc, char **argv) {
@@ -770,32 +810,11 @@ int main(int argc, char **argv) {
     }
     
     std::vector<string> src;
-    std::fstream source = openFile(filename);
-    std::string line;
-    while(std::getline(source, line)){  //read data from file object and put it into string.
-        if(line.size())
-            src.push_back(line);
-    }
-    source.close();
-    std::fstream rawMacrosFile = openFile("macros.src");
-    if (rawMacrosFile) {
-        std::vector<string> rawMacros;
-        std::string line;
-        while(std::getline(rawMacrosFile, line)){  //read data from file object and put it into string.
-            if(line.size())
-                rawMacros.push_back(line);
-        }
-        if (vectorContains(rawMacros, "\\")) {
-            printf("\\ In code.");
-            return 1;
-        }
-        firstPass(&rawMacros);
-    }
+    src = fileFirstPass(filename);
+    
+    fileFirstPass("macros.src", false);
 
-    if (vectorContains(src, "\\")) {
-        printf("\\ In code.");
-        return 1;
-    }
+    currfile = filename;
     parseSource(src);
 
     std::ofstream code(getSubStrBAChar(string(filename), '.', true) + ".bit", std::ofstream::trunc);

@@ -25,7 +25,8 @@ A = $arg
 A = A + 1
 %%
 ```
-The assembler will look for "macros.src" and include it automatically.
+Files can be included by inserting a '@' character before a filename (That line will be replaced with the code in the file).
+The assembler will look for "macros.src" and include it automatically (Note that only constants and macros will be parsed unless manually included).
 
 ### Compiling the Assembler
 Just compile the Assembler and Misc CPP files.
