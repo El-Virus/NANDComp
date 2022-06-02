@@ -33,7 +33,7 @@ namespace PROCESSOR {
         work = decomposeWord(select16(work.b[CI], 0x0000000000100000, I));
         di.computation = work.b[CI];
         di.source = work.b[SM];
-        di.operation = {work.b[ZX], work.b[NX], work.b[ZY], work.b[NY], work.b[F], work.b[NO]};
+        di.operation = {work.b[U], work.b[OP1], work.b[OP0], work.b[ZX], work.b[SW]};
         di.destination.b[2] = work.b[AM]; di.destination.b[1] = work.b[D]; di.destination.b[0] = OR(work.b[A], NOT(work.b[CI]));
         di.condition = {work.b[LT], work.b[EQ], work.b[GT]};
         return di;

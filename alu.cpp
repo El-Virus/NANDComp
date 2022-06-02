@@ -6,33 +6,21 @@ using namespace LOGIC_GATES;
 using namespace TYPES;
 
 namespace ALU {
-    //class UnaryALU
-        WORD UnaryALU::negate(WORD x) {
-            return inv16(x);
+    //class LogicUnit
+        WORD LogicUnit::operate(BIT op1, BIT op0, WORD x, WORD y) {
+            return select16(op1, select16(op0, bitTo16(x, y, AND), bitTo16(x, y, OR)), select16(op0, bitTo16(x, y, XOR), inv16(x)));
         }
 
-        WORD UnaryALU::zero(WORD x) {
-            return 0;
-        }
-
-        WORD UnaryALU::zero() {
-            return 0;
-        }
-
-        WORD UnaryALU::operate(BIT z, BIT n, WORD x) {
-            WORD work;
-            work = select16(z, x, zero());
-            return select16(n, work, inv16(work));
+    //class ArithmeticUnit
+        WORD ArithmeticUnit::operate(BIT op1, BIT op0, WORD x, WORD y) {
+            return select16(op0, select16(op1, add16(x, y, 0).word, sub16(x, y)), select16(op1, add16(x, 1, 0).word, sub16(x, 1)));
         }
 
     //class ALU
-        WORD ALU::funct(BIT f, WORD x, WORD y) {
-            return select16(f, and16(x, y), add16(x, y, 0).word);
-        }
-
         WORD ALU::operate(ALUOp op, WORD x, WORD y) {
-            WORD work = funct(op.f, UnaryALU::operate(op.zx, op.nx, x), UnaryALU::operate(op.zy, op.ny, y));
-            return select16(op.no, work, inv16(work));
+            WORD X = select16(op.zx, select16(op.sw, x, y), 0);
+            WORD Y = select16(op.sw, y, x);
+            return (select16(op.u, LogicUnit::operate(op.op1, op.op0, X, Y),ArithmeticUnit::operate(op.op1, op.op0, X, Y)));
         }
 
     //condition

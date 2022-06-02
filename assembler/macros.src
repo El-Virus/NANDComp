@@ -23,7 +23,7 @@ D = *A
 
 %POP_A
 A = SP
-*A = *A -1
+*A = *A - 1
 A = *A
 A = *A
 %%

@@ -45,10 +45,10 @@ namespace ARITHMETICS {
         return composeWord(s);
     }
 
-    WORD and16(WORD a, WORD b) {
+    WORD bitTo16(WORD a, WORD b, bitfunc func) {
         BitArr<16> s;
         for (SU i = 0; i <= 15; i++) {
-            s.b[i] = AND(getBitFromWord(a, i), getBitFromWord(b, i));
+            s.b[i] = func(getBitFromWord(a, i), getBitFromWord(b, i));
         }
         return composeWord(s);
     }

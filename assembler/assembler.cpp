@@ -188,12 +188,16 @@ void errExit(string message, string line, int code = 1) {
     exit(code);
 }
 
+bool isLogOp(Tokens token) {
+    return (token == Tokens::Or || token == Tokens::And || token == Tokens::Tilde);
+}
+
 class Tokenizer {
     private:
         string work;
         std::vector<Tokens> res;
         SU iter = 0;
-        short num = 0;
+        short num = 2;
     private:
         void ignore(char c) {
             work.erase(std::remove(work.begin(), work.end(), c), work.end());
@@ -469,67 +473,56 @@ class CodeGenerator {
 
             //TODO: implement operations (better oper generation)
 
+            if (num == 1) {
+                work.b[OP0] = 1;
+            }
+
             if (twork.size() == 1) {
-                if (stwork[0] == Tokens::_REG) {
-                    if (twork[0] == Tokens::A) {
-                        work.b[ZX] = 1;
-                    } else {
-                        work.b[ZY] = 1;
-                    }
-                    work.b[F] = 1;
-                } else {
-                    work.b[ZX] = 1;
-                    work.b[ZY] = 1;
-                    if (num == 1) {
-                        work.b[NO] = 1;
+                work.b[ZX] = 1;
+                if (!num == 0) {
+                    work.b[U] = 1;
+                    if (twork[0] == Tokens::D) {
+                        work.b[SW] = 1;
                     } else if (num == -1) {
-                        work.b[NX] = 1;
-                        work.b[NY] = 1;
-                        work.b[F] = 1;
-                        work.b[NO] = 1;
+                        work.b[OP0] = 1;
+                        work.b[OP1] = 1;
                     }
                 }
             } else if (twork.size() == 2) {
-                work.b[F] = 1;
-                if (twork[0] == Tokens::D || twork[1] == Tokens::D) {
-                    work.b[ZY] = 1;
-                    work.b[NY] = 1;
+                work.b[OP1] = 1;
+                if (!isLogOp(twork[0])) {
+                    work.b[OP0] = 1;
                 } else {
+                    work.b[U] = 1;
                     work.b[ZX] = 1;
-                    work.b[NX] = 1;
                 }
-                if (stwork[0] == Tokens::_SOPER) {
-                   if (twork[0] == Tokens::Minus) {
-                       work.b[NO] = 1;
-                   } else {
-                       work.b[NY] = !work.b[NY];
-                       work.b[NX] = !work.b[NX];
-                   }
+                if (matchExact({Tokens::Minus, Tokens::D}) || matchExact({Tokens::Tilde, Tokens::A})) {
+                    work.b[SW] = 1;
                 }
-            } else {
-                if (twork[1] == Tokens::Plus && twork[2] == Tokens::Number) {
+                if (num == -1) {
+                    work.b[U] = 1;
                     if (twork[0] == Tokens::A) {
-                        work.b[ZX] = 1;
-                    } else {
-                        work.b[ZY] = 1;
+                        work.b[SW] = 1;
                     }
+                }
+            } else if (twork.size() == 3) {
+                if (twork[0] == Tokens::D && stwork[1] == Tokens::_OPER && twork[2] == Tokens::A && twork[1] != Tokens::Minus) {
+                    twork[0] = Tokens::A;
+                    twork[2] = Tokens::D;
+                }
+                if (!isLogOp(twork[1])) {
+                    work.b[U] = 1;
+                } else if (twork[1] == Tokens::Or) {
+                    work.b[OP0] = 1;
                 }
                 if (twork[1] == Tokens::Minus) {
-                    if (twork[0] == Tokens::A) {
-                        work.b[NX] = 1;
-                    } else {
-                        work.b[NY] = 1;
-                    }
+                    work.b[OP1] = 1;
                 }
-                if (!(twork[1] == Tokens::And || twork[1] == Tokens::Or)) {
-                    work.b[F] = 1;
-                } else if (twork[1] == Tokens::Or) {
-                    work.b[NX] = 1;
-                    work.b[NY] = 1;
+                if (twork[0] == Tokens::A) {
+                    work.b[SW] = 1;
                 }
-                if (!(twork[1] == Tokens::And || matchExact({Tokens::D, Tokens::Plus, Tokens::A})))
-                    work.b[NO] = 1;
             }
+            
             if (useDec) {
                 bits.push_back(std::to_string(composeWord(work)));
             } else {

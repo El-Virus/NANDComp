@@ -3,12 +3,11 @@
 namespace ALU {
     struct ALUOp
     {
+        BIT u;
+        BIT op1;
+        BIT op0;
         BIT zx;
-        BIT nx;
-        BIT zy;
-        BIT ny;
-        BIT f;
-        BIT no;
+        BIT sw;
     };
 
     struct Conditions
@@ -17,16 +16,16 @@ namespace ALU {
         BIT eq;
         BIT gt;
     };
-    class UnaryALU {
+    class LogicUnit {
         public:
-            static WORD negate(WORD x);
-            static WORD zero(WORD x);
-            static WORD zero();
-            static WORD operate(BIT z, BIT n, WORD x);
+            static WORD operate(BIT op1, BIT op0, WORD x, WORD y);
+    };
+    class ArithmeticUnit {
+        public:
+            static WORD operate(BIT op1, BIT op0, WORD x, WORD y);
     };
     class ALU {
         public:
-            static WORD funct(BIT f, WORD x, WORD y);
             static WORD operate(ALUOp op, WORD x, WORD y);
     };
     BIT condition(Conditions cd, WORD x);
