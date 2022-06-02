@@ -1,5 +1,4 @@
 #pragma once
-
 #include "processor.hpp"
 
 namespace COMPUTER {

@@ -1,8 +1,9 @@
-#include "logic.hpp"
-#include "misc.hpp"
+#pragma once
+#include "types.hpp"
 
 namespace ARITHMETICS {
     typedef BIT (*bitfunc)(BIT a, BIT b);
+    
     TYPES::HLBits add(bool a, bool b, bool c);
     TYPES::WORDWCarry add16(WORD a, WORD b, BIT c);
     WORD inc16(WORD a);

@@ -1,7 +1,5 @@
 #include "computer.hpp"
-#include <iostream>
 #include <fstream>
-#include <bitset>
 #include <string>
 
 int main(int argc, char **argv) {
@@ -19,6 +17,7 @@ int main(int argc, char **argv) {
         printf("Could not open code file %s.", filename.c_str());
         return 1;
     }
+    
     std::vector<MEMORY::Register> ROMMem;
     std::string line;
     while(std::getline(code, line)){  //read data from file object and put it into string.

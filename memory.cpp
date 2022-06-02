@@ -1,8 +1,8 @@
 #include "memory.hpp"
+#include "arithmetics.hpp"
 
 using namespace ARITHMETICS;
 using namespace TYPES;
-using namespace PLUMBING;
 
 namespace MEMORY {
     //class Latch
@@ -21,6 +21,7 @@ namespace MEMORY {
         Latch::Latch(BIT d) {
             status = d;
         }
+    
     //class Register
         void Register::set(WORD d) {
             status = d;
@@ -37,10 +38,12 @@ namespace MEMORY {
         Register::Register(WORD d) {
             status = d;
         }
+    
     //class Counter
         void Counter::tick() {
             status = inc16(status);
         }
+    
     //class ROM
         WORD ROM::get(WORD addr) {
             return registers[addr].get();
@@ -53,6 +56,7 @@ namespace MEMORY {
                 registers[i].set(regs[i].get());
             }
         }
+    
     //class RAM
         void RAM::set(WORD addr, WORD d) {
             registers[addr].set(d);

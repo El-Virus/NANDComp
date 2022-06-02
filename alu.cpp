@@ -1,9 +1,11 @@
 #include "alu.hpp"
+#include "arithmetics.hpp"
+#include "logic.hpp"
+#include "plumbing.hpp"
 
 using namespace ARITHMETICS;
-using namespace PLUMBING;
 using namespace LOGIC_GATES;
-using namespace TYPES;
+using namespace PLUMBING;
 
 namespace ALU {
     //class LogicUnit

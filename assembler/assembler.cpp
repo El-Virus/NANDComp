@@ -1,17 +1,15 @@
-#include "stdio.h"
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <sstream>
-#include <vector>
-#include <regex>
-#include <bitset>
 #include "../misc.hpp"
+#include <stdio.h>
+#include <bitset>
+#include <fstream>
+#include <regex>
+#include <sstream>
+#include <string>
+#include <vector>
 
-using std::string;
-using namespace TYPES;
 using namespace BITMAN;
 using namespace MISC;
+using namespace TYPES;
 
 enum Tokens {
     Number,
@@ -40,17 +38,17 @@ enum Tokens {
 };
 
 struct KVP {
-    string key;
+    std::string key;
     unsigned int value;
 };
 
 struct DS {
-    string key;
-    string value;
+    std::string key;
+    std::string value;
 };
 
 struct Macro {
-    string name;
+    std::string name;
     std::vector<std::string> instructions;
     bool shouldBeExpanded;
     std::vector<DS> arguments;
@@ -58,7 +56,7 @@ struct Macro {
 
 std::vector<std::string> bits;
 unsigned int linen = 1;
-string currfile;
+std::string currfile;
 bool useDec = false;
 std::vector<KVP> labels;
 std::vector<KVP> constants;
@@ -86,7 +84,7 @@ std::string getSubStrBAChar(std::string const& str, const char chr, bool before)
     return str;
 }
 
-std::vector<string> cutString(string str, char delim) {
+std::vector<std::string> cutString(std::string str, char delim) {
     std::stringstream ss(str);
     std::string segment;
     std::vector<std::string> seglist;
@@ -101,11 +99,12 @@ bool replace(std::string& str, const std::string& from, const std::string& to) {
     size_t start_pos = str.find(from);
     if(start_pos == std::string::npos)
         return false;
+    
     str.replace(start_pos, from.length(), to);
     return true;
 }
 
-bool labelExists(string label) {
+bool labelExists(std::string label) {
     for (SU i = 0; i < labels.size(); i++) {
         if (labels[i].key == label)
             return true;
@@ -113,7 +112,7 @@ bool labelExists(string label) {
     return false;
 }
 
-unsigned int getLabel(string label) {
+unsigned int getLabel(std::string label) {
     for (SU i = 0; i < labels.size(); i++) {
         if (labels[i].key == label)
             return labels[i].value;
@@ -121,7 +120,7 @@ unsigned int getLabel(string label) {
     return 0;
 }
 
-bool constantExists(string constant) {
+bool constantExists(std::string constant) {
     for (SU i = 0; i < constants.size(); i++) {
         if (constants[i].key == constant)
             return true;
@@ -129,7 +128,7 @@ bool constantExists(string constant) {
     return false;
 }
 
-unsigned int getConstant(string constant) {
+unsigned int getConstant(std::string constant) {
     for (SU i = 0; i < constants.size(); i++) {
         if (constants[i].key == constant)
             return constants[i].value;
@@ -137,7 +136,7 @@ unsigned int getConstant(string constant) {
     return 0;
 }
 
-string getRegex(string pattern, string str) {
+std::string getRegex(std::string pattern, std::string str) {
     std::regex rx(pattern);
     std::smatch sm;
     if (std::regex_search(str, sm, rx)) {
@@ -147,8 +146,8 @@ string getRegex(string pattern, string str) {
     return "";
 }
 
-int getHBDNum(string str) {
-    string ret = getRegex("(0b)[0-1]+", str);
+int getHBDNum(std::string str) {
+    std::string ret = getRegex("(0b)[0-1]+", str);
     if (ret != "")
         return stoi(ret.substr(2), (size_t *)nullptr, 2);
     
@@ -163,11 +162,11 @@ int getHBDNum(string str) {
     return 0;
 }
 
-bool stringContains(string container, string containee) {
+bool stringContains(std::string container, std::string containee) {
     return (container.find(containee) != std::string::npos);
 }
 
-bool vectorContains(std::vector<string> vec, string containee) {
+bool vectorContains(std::vector<std::string> vec, std::string containee) {
     for (unsigned int i = 0; i < vec.size(); i++) {
         if (stringContains(vec[i], containee))
             return true;
@@ -176,14 +175,15 @@ bool vectorContains(std::vector<string> vec, string containee) {
 }
 
 bool isNumber(char c) {
-    string str(1, c);
-    string ret = getRegex("[0-9]+", str);
+    std::string str(1, c);
+    std::string ret = getRegex("[0-9]+", str);
     if (ret != "")
         return true;
+    
     return false;
 }
 
-void errExit(string message, string line, int code = 1) {
+void errExit(std::string message, std::string line, int code = 1) {
     printf("%s on [%s](expanding includes), (%s). Check your Syntax.", message.c_str(), line.c_str(), currfile.c_str());
     exit(code);
 }
@@ -194,7 +194,7 @@ bool isLogOp(Tokens token) {
 
 class Tokenizer {
     private:
-        string work;
+        std::string work;
         std::vector<Tokens> res;
         SU iter = 0;
         short num = 2;
@@ -202,13 +202,13 @@ class Tokenizer {
         void ignore(char c) {
             work.erase(std::remove(work.begin(), work.end(), c), work.end());
         }
-        string matchRegex(string pattern, Tokens type) {
+        std::string matchRegex(std::string pattern, Tokens type) {
             std::regex rx(pattern);
             std::smatch sm;
             if (std::regex_search(work, sm, rx)) {
                 if (sm.position() == 0) {
                     res.push_back(type);
-                    string ret = work.substr(0, sm.length()).c_str();
+                    std::string ret = work.substr(0, sm.length()).c_str();
                     work.erase(0, sm.length());
                     iter = 0;
                     return ret;
@@ -223,7 +223,7 @@ class Tokenizer {
                 iter = 0;
             }
         }
-        void matchExact(string c, Tokens type) {
+        void matchExact(std::string c, Tokens type) {
             for (SU i = 0; i < c.size(); i++) {
                 if (work[i] != c[i])
                     return;
@@ -234,7 +234,7 @@ class Tokenizer {
         }
         void matchExact(char c, Tokens type, bool checknum) {
             if (checknum) {
-                string ret = matchRegex("-?[0-9]+", Tokens::Number);
+                std::string ret = matchRegex("-?[0-9]+", Tokens::Number);
                 if (ret != "")
                     num = atoi(ret.c_str());
             }
@@ -255,7 +255,7 @@ class Tokenizer {
             }
         }
         void matchNumber() {
-            string ret = matchRegex("(0b)[0-1]+", Tokens::Number);
+            std::string ret = matchRegex("(0b)[0-1]+", Tokens::Number);
             if (ret != "") {
                 num = stoi(ret.substr(2), (size_t *)nullptr, 2);
             } else {
@@ -270,12 +270,13 @@ class Tokenizer {
             }
         }
     public:
-        std::vector<Tokens> tokenize(string str) {
+        std::vector<Tokens> tokenize(std::string str) {
             res.clear();
             work = str;
             ignore(' ');
             ignore('\t');
             ignore('_');
+
             while (work.length() != 0 && iter <= 11) {
                 matchNumber();
                 matchExact('+', Tokens::Plus);
@@ -298,9 +299,10 @@ class Tokenizer {
                 matchLabelConstant();
                 iter++;
             }
-            if (iter >= 11) {
+
+            if (iter >= 11)
                 errExit("Too many iterations on tokenization", str);
-            }
+            
             return res;
         }
 
@@ -341,6 +343,7 @@ class GrammarChecker {
     public:
         bool check(std::vector<Tokens> tokens, std::vector<Tokens> stokens, short num) {
             work = stokens;
+
             //Exception: A = Number
             if (tokens.size() == 3 && tokens[0] == Tokens::A && tokens[1] == Tokens::Equal && tokens[2] == Tokens::Number && isBetween((short)-2, num, (short)32765))
                 return true;
@@ -363,10 +366,12 @@ class GrammarChecker {
                     if (work[0] == Tokens::_REG && work[1] == Tokens::Coma && work[2] == Tokens::_REG)
                         work.erase(std::next(work.begin(), 1), std::next(work.begin(), 3));
                 }
+
                 if (!(work[0] == Tokens::_REG && work[1] == Tokens::Equal))
                     return false;
 
                 work.erase(std::next(work.begin(), 0), std::next(work.begin(), 2));
+
                 if (work.size() == 1 && ((work[0] == Tokens::_REG) || ((work[0] == Tokens::Number) && (isBetween((short)-2, num, (short)2))))) {
                     return true;
                 } else if (work.size() == 2 && (matchExact({Tokens::_SOPER, Tokens::_REG}) || matchExact({Tokens::_REG, Tokens::_JMP}) || (matchExact({Tokens::Number, Tokens::_JMP}) && (isBetween((short)-2, num, (short)2))) || (work[0] == Tokens::_REG && work[1] == Tokens::Number && num == -1))) {
@@ -425,13 +430,14 @@ class CodeGenerator {
             }
             return true;
         }
-        string decToBin(short dec) {
+        std::string decToBin(short dec) {
             return std::bitset<16>(dec).to_string();
         }
     public:
         void generate(std::vector<Tokens> tokens, std::vector<Tokens> stokens, short num) {
             twork = tokens;
             stwork = stokens;
+
             //Exception: A = Number
             if (tokens.size() == 3 && tokens[0] == Tokens::A && tokens[1] == Tokens::Equal && tokens[2] == Tokens::Number) {
                 if (useDec) {
@@ -442,6 +448,7 @@ class CodeGenerator {
                 return;
             }
             work.b[CI] = 1; //Set Operation Bit
+
             if (vecContains(stwork, Tokens::Equal)) {
                 for (SU i = 0; i <= 2; i++) {
                     if (stwork[0] == Tokens::_REG) {
@@ -458,13 +465,15 @@ class CodeGenerator {
                     }
                 }
             }
-            if (vecContains(twork, Tokens::A) && vecContains(twork, Tokens::AM)) {
+
+            if (vecContains(twork, Tokens::A) && vecContains(twork, Tokens::AM))
                 errExit("Can't use A and A* as operators", " ~line (without special lines)" + linen);
-            }
+            
             if (vecContains(twork, Tokens::AM)) {
                 work.b[SM] = 1;
                 std::replace(twork.begin(), twork.end(), Tokens::AM, Tokens::A);
             }
+
             if (stwork.back() == Tokens::_JMP) {
                 pullJump(twork.back());
                 twork.pop_back();
@@ -473,9 +482,8 @@ class CodeGenerator {
 
             //TODO: implement operations (better oper generation)
 
-            if (num == 1) {
+            if (num == 1)
                 work.b[OP0] = 1;
-            }
 
             if (twork.size() == 1) {
                 work.b[ZX] = 1;
@@ -496,14 +504,13 @@ class CodeGenerator {
                     work.b[U] = 1;
                     work.b[ZX] = 1;
                 }
-                if (matchExact({Tokens::Minus, Tokens::D}) || matchExact({Tokens::Tilde, Tokens::A})) {
+                if (matchExact({Tokens::Minus, Tokens::D}) || matchExact({Tokens::Tilde, Tokens::A}))
                     work.b[SW] = 1;
-                }
+                
                 if (num == -1) {
                     work.b[U] = 1;
-                    if (twork[0] == Tokens::A) {
+                    if (twork[0] == Tokens::A)
                         work.b[SW] = 1;
-                    }
                 }
             } else if (twork.size() == 3) {
                 if (twork[0] == Tokens::D && stwork[1] == Tokens::_OPER && twork[2] == Tokens::A && twork[1] != Tokens::Minus) {
@@ -515,12 +522,11 @@ class CodeGenerator {
                 } else if (twork[1] == Tokens::Or) {
                     work.b[OP0] = 1;
                 }
-                if (twork[1] == Tokens::Minus) {
+                if (twork[1] == Tokens::Minus)
                     work.b[OP1] = 1;
-                }
-                if (twork[0] == Tokens::A) {
+
+                if (twork[0] == Tokens::A)
                     work.b[SW] = 1;
-                }
             }
             
             if (useDec) {
@@ -538,12 +544,15 @@ void parseLine(std::string line) {
             return;
         }
     }
+
     if (line.substr(0, 3) == "\\ci") {
         bits.push_back(line.substr(3));
         return;
     }
+
     Tokenizer tokenizer;
     std::vector<Tokens> tokens = tokenizer.tokenize(line);
+
     GrammarChecker grammarchecker;
     if (grammarchecker.check(tokens, tokenizer.simplify(), tokenizer.getNum())) {
         CodeGenerator codegenerator;
@@ -553,34 +562,38 @@ void parseLine(std::string line) {
     }
 }
 
-void firstPass(std::vector<string> *src) {
+void firstPass(std::vector<std::string> *src) {
     for (unsigned int i = 0; i < src->size(); i++) {
         if ((*src)[i][0] == '#') {
             src->erase(src->begin() + i);
             i--;
         }
     }
+
     for (unsigned int i = 0; i < src->size(); i++) {
         if ((*src)[i][0] == '&') {
-            string str = (*src)[i];
+            std::string str = (*src)[i];
             str.erase(str.begin());
             str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+
             std::regex rx("^[a-zA-Z]+=(0b|0x)?[0-9a-fA-F]+$");
             std::smatch sm;
-            if (!std::regex_match(str, sm, rx)) {
+            if (!std::regex_match(str, sm, rx))
                 errExit("Constant definition error", (*src)[i]);
-            }
+
             constants.push_back({getSubStrBAChar(str, '=', true), (unsigned int)getHBDNum(getSubStrBAChar(str, '=', false).c_str())});
             src->erase(src->begin() + i);
             i--;
         }
     }
+
     for (unsigned int i = 0; i < src->size(); i++) {
         if ((*src)[i][0] == '%') {
-            string name = (*src)[i];
+            std::string name = (*src)[i];
             name.erase(name.begin());
             bool containsArgs = false;
             std::vector<DS> args;
+
             std::regex rx("^[A-Z_]+$");
             std::smatch sm;
             if (!std::regex_match(name, sm, rx)) {
@@ -589,7 +602,7 @@ void firstPass(std::vector<string> *src) {
                     errExit("Macro definition error", (*src)[i]);
                 } else {
                     containsArgs = true;
-                    std::vector<string> arguments = cutString(name, ' ');
+                    std::vector<std::string> arguments = cutString(name, ' ');
                     arguments.erase(arguments.begin());
                     for (unsigned int j = 0; j < arguments.size(); j++) {
                         arguments[j].erase(std::remove(arguments[j].begin(), arguments[j].end(), '$'), arguments[j].end());
@@ -599,14 +612,17 @@ void firstPass(std::vector<string> *src) {
                     }
                 }
             }
+
             std::vector<std::string> macro;
             src->erase(src->begin() + i);
             while ((*src)[i] != "%%") {
                 macro.push_back((*src)[i]);
                 src->erase(src->begin() + i);
             }
+
             src->erase(src->begin() + i);
             bool canPrecompileWhole = true;
+            
             if (containsArgs) {
                 canPrecompileWhole = false;
             } else {
@@ -622,7 +638,7 @@ void firstPass(std::vector<string> *src) {
                 macros.push_back({name, bits, true, {}});
                 bits.clear();
             } else {
-                std::vector<string> instructions;
+                std::vector<std::string> instructions;
                 for (unsigned int j = 0; j < macro.size(); j++) {
                     macro[j].erase(std::remove(macro[j].begin(), macro[j].end(), ' '), macro[j].end());
                     if (!(stringContains(macro[j], "LABEL") || stringContains(macro[j], "$") || (macro[j][0] == 'A' && macro[j][1] == '=' && !isNumber(macro[j][2])))) {
@@ -642,7 +658,7 @@ void firstPass(std::vector<string> *src) {
     }
 }
 
-std::fstream openFile(string filename, bool ret = true) {
+std::fstream openFile(std::string filename, bool ret = true) {
     std::fstream file;
     file.open(filename);
     if (!file.is_open() && ret) {
@@ -652,21 +668,24 @@ std::fstream openFile(string filename, bool ret = true) {
     return file;
 }
 
-std::vector<string> fileFirstPass(string filename, bool ret = true) {
+std::vector<std::string> fileFirstPass(std::string filename, bool ret = true) {
     std::fstream file = openFile(filename, ret);
     if (file.is_open()) {
-        std::vector<string> data;
+        std::vector<std::string> data;
         std::string line;
+
         while(std::getline(file, line)){  //read data from file object and put it into string.
             if(line.size())
                 data.push_back(line);
         }
         file.close();
+
         if (vectorContains(data, "\\")) {
-            printf("\\ In file: %s.", filename.c_str());
+            printf("Compiler reserrved character(\\) in file: %s.", filename.c_str());
             exit(1);
         }
-        string lcrf = currfile;
+        
+        std::string lcrf = currfile;
         currfile = filename;
         firstPass(&data);
         currfile = lcrf;
@@ -679,7 +698,7 @@ std::vector<string> fileFirstPass(string filename, bool ret = true) {
     }
 }
 
-void processLabels(std::vector<string> *src) {
+void processLabels(std::vector<std::string> *src) {
     unsigned int premOff = 0;
     for (unsigned int i = 0; i < src->size(); i++) {
         for (unsigned int j = 0; j < macros.size(); j++) {
@@ -694,9 +713,10 @@ void processLabels(std::vector<string> *src) {
     }
 }
 
-void expandUncompiledMacros(std::vector<string> *src) {
+void expandUncompiledMacros(std::vector<std::string> *src) {
     while (true) {
         firstPass(src);
+
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
                 if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded) {
@@ -706,6 +726,7 @@ void expandUncompiledMacros(std::vector<string> *src) {
                 }
             }
         }
+
         bool breakLoop = true;
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
@@ -720,20 +741,22 @@ void expandUncompiledMacros(std::vector<string> *src) {
         for (unsigned int i = 0; i < src->size(); i++) {
             for (unsigned int j = 0; j < macros.size(); j++) {
                 if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].shouldBeExpanded) {
-                    string work = (*src)[i].substr(cutString((*src)[i], ' ')[0].length());
+                    std::string work = (*src)[i].substr(cutString((*src)[i], ' ')[0].length());
                     src->erase(src->begin() + i);
-                    std::regex rx(string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) + "}$");
+
+                    std::regex rx(std::string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) + "}$");
                     std::smatch sm;
-                    if (!std::regex_match(work, sm, rx)) {
+                    if (!std::regex_match(work, sm, rx))
                         errExit("Macro missuse", (*src)[i]);
-                    }
+
                     work = work.substr(1);
-                    std::vector<string> arguments = cutString(work, ' ');
+                    std::vector<std::string> arguments = cutString(work, ' ');
                     Macro macro = macros[j];
                     for (unsigned int k = 0; k < arguments.size(); k++) {
                         macro.arguments[k].value = arguments[k];
                     }
-                    std::vector<string> instructions = macro.instructions;
+
+                    std::vector<std::string> instructions = macro.instructions;
                     for (unsigned int k = 0; k < instructions.size(); k++) {
                         for (unsigned int l = 0; l < macro.arguments.size(); l++) {
                             replace(instructions[k], "$" + macro.arguments[l].key, macro.arguments[l].value);
@@ -762,19 +785,19 @@ void expandUncompiledMacros(std::vector<string> *src) {
     }
 }
 
-void handleIncludes(std::vector<string> *src) {
+void handleIncludes(std::vector<std::string> *src) {
     for (unsigned int i = 0; i < src->size(); i++) {
         if ((*src)[i][0] == '@') {
-            string filename = (*src)[i].substr(1);
+            std::string filename = (*src)[i].substr(1);
             src->erase(src->begin() + i);
-            std::vector<string> include = fileFirstPass(filename);
+            std::vector<std::string> include = fileFirstPass(filename);
             src->insert(std::begin(*src) + i, std::begin(include), std::end(include));
             i--;
         }
     }
 }
 
-void parseSource(std::vector<string> src) {
+void parseSource(std::vector<std::string> src) {
     handleIncludes(&src);
     expandUncompiledMacros(&src);
     processLabels(&src);
@@ -782,6 +805,7 @@ void parseSource(std::vector<string> src) {
         parseLine(src[i]);
         linen++;
     }
+
     if (useDec) {
         bits.push_back("49152");
     } else {
@@ -790,19 +814,19 @@ void parseSource(std::vector<string> src) {
 }
 
 int main(int argc, char **argv) {
-    string filename;
+    std::string filename;
     if (argc < 2) {
         printf("Usage: %s [-d] program.src", argv[0]);
         return 1;
     } else if (argc == 2) {
         filename = argv[1];
     } else if (argc == 3) {
-        if (string(argv[1]) == "-d")
+        if (std::string(argv[1]) == "-d")
             useDec = true;
         filename = argv[2];
     }
     
-    std::vector<string> src;
+    std::vector<std::string> src;
     src = fileFirstPass(filename);
     
     fileFirstPass("macros.src", false);
@@ -810,14 +834,16 @@ int main(int argc, char **argv) {
     currfile = filename;
     parseSource(src);
 
-    std::ofstream code(getSubStrBAChar(string(filename), '.', true) + ".bit", std::ofstream::trunc);
+    std::ofstream code(getSubStrBAChar(std::string(filename), '.', true) + ".bit", std::ofstream::trunc);
     if (!code.is_open()) {
-        printf("Could not open destination file %s.", (string(filename) + ".bit").c_str());
+        printf("Could not open destination file %s.", (std::string(filename) + ".bit").c_str());
         return 1;
     }
+
     for (unsigned int i = 0; i < bits.size(); i++) {
         code << bits[i] << std::endl;
     }
     code.close();
+
     return 0;
 }

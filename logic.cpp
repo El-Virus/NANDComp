@@ -1,4 +1,3 @@
-//#include "bit/bit.hpp"
 #include "logic.hpp"
 #include <assert.h>
 

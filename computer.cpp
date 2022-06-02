@@ -1,14 +1,15 @@
 #include "computer.hpp"
-#include <bitset>
+#include "logic.hpp"
+#include "misc.hpp"
 
-using namespace PROCESSOR;
 using namespace BITMAN;
 using namespace LOGIC_GATES;
+using namespace PROCESSOR;
 
 namespace COMPUTER {
     //class Computer
         void Computer::run()  {
-            while ((AND(BITMAN::getBitFromWord(ROM.get(pc.get()), 14), BITMAN::getBitFromWord(ROM.get(pc.get()), MISC::CI)) != true)) {
+            while ((AND(getBitFromWord(ROM.get(pc.get()), 14), getBitFromWord(ROM.get(pc.get()), MISC::CI)) != true)) {
                 tick();
             }
         }

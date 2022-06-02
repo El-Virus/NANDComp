@@ -1,10 +1,12 @@
 #include "processor.hpp"
-#include <iostream>
+#include "logic.hpp"
+#include "misc.hpp"
+#include "plumbing.hpp"
 
+using namespace LOGIC_GATES;
+using namespace MISC;
 using namespace PLUMBING;
 using namespace TYPES;
-using namespace MISC;
-using namespace LOGIC_GATES;
 
 namespace PROCESSOR {
     //class CombinedMemory
@@ -17,6 +19,7 @@ namespace PROCESSOR {
         TriWORD CombinedMemory::getValues() {
             return {A.get(), D.get(), RAM.get(A.get())};
         }
+    
     //class Processor
         ProcessResult Processor::process(WORD I) {
             DecodedInstruction di = decodeInstruction(I);
@@ -25,6 +28,7 @@ namespace PROCESSOR {
             cm.store(di.destination, select16(di.computation, di.W, ALURes));
             return {condition(di.condition, ALURes), cm.getValues().a};
         }
+    
     //decode Instruction
     DecodedInstruction decodeInstruction(WORD I) {
         DecodedInstruction di;

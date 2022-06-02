@@ -1,6 +1,6 @@
 #pragma once
 #define MEM_SIZE 0xffff
-#include "plumbing.hpp"
+#include "types.hpp"
 #include <vector>
 
 namespace MEMORY {
@@ -13,7 +13,7 @@ namespace MEMORY {
             Latch();
             Latch(BIT d);
     };
-    //class DFF
+
     class Register {
         protected:
             WORD status;
@@ -23,10 +23,12 @@ namespace MEMORY {
             Register();
             Register(WORD d);
     };
+
     class Counter : public Register {
         public:
             void tick();
     };
+
     class ROM {
         protected:
             Register registers[MEM_SIZE];
@@ -35,6 +37,7 @@ namespace MEMORY {
             ROM();
             ROM(std::vector<Register> regs);
     };
+
     class RAM : public ROM {
         public:
             void set(WORD addr, WORD d);

@@ -1,8 +1,10 @@
 #include "plumbing.hpp" 
+#include "logic.hpp"
+#include "misc.hpp"
 
+using namespace BITMAN;
 using namespace LOGIC_GATES;
 using namespace TYPES;
-using namespace BITMAN;
 
 namespace PLUMBING {
     BIT bselect(BIT s, BIT d0, BIT d1) {

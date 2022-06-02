@@ -1,9 +1,10 @@
 #include "arithmetics.hpp"
+#include "logic.hpp"
 #include "misc.hpp"
 
+using namespace BITMAN;
 using namespace LOGIC_GATES;
 using namespace TYPES;
-using namespace BITMAN;
 
 namespace ARITHMETICS {
 
@@ -25,6 +26,7 @@ namespace ARITHMETICS {
         BitArr<16> s;
         BIT carry = c;
         HLBits work;
+
         for (SU i = 0; i <= 15; i++) {
             work = add(getBitFromWord(a, i), getBitFromWord(b, i), carry);
             s.b[i] = work.l;
@@ -39,6 +41,7 @@ namespace ARITHMETICS {
 
     WORD inv16(WORD a) {
         BitArr<16> s;
+
         for (SU i = 0; i <= 15; i++) {
             s.b[i] = NOT(getBitFromWord(a, i));
         }
@@ -47,6 +50,7 @@ namespace ARITHMETICS {
 
     WORD bitTo16(WORD a, WORD b, bitfunc func) {
         BitArr<16> s;
+        
         for (SU i = 0; i <= 15; i++) {
             s.b[i] = func(getBitFromWord(a, i), getBitFromWord(b, i));
         }

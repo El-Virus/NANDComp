@@ -1,5 +1,4 @@
 #pragma once
-
 #include <stdbool.h>
 
 typedef unsigned short WORD;
@@ -17,8 +16,7 @@ namespace TYPES {
         BIT b[T];
     };
 
-    struct WORDWCarry
-    {
+    struct WORDWCarry {
         WORD word;
         BIT carry;
     };
