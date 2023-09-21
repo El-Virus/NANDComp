@@ -674,9 +674,11 @@ std::vector<std::string> fileFirstPass(std::string filename, bool ret = true) {
         std::vector<std::string> data;
         std::string line;
 
-        while(std::getline(file, line)){  //read data from file object and put it into string.
-            if(line.size())
+        while (std::getline(file, line)) {  //read data from file object and put it into string.
+            if (line.size()){
+                line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
                 data.push_back(line);
+            } 
         }
         file.close();
 
