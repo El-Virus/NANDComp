@@ -1,4 +1,6 @@
 .vscode
+assembler/assembler
+sim
 *.obj
 *.exe
 *.src

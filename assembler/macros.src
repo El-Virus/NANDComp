@@ -1,3 +1,10 @@
+#Simulator
+&STOP = 0
+&HOLD = 1
+&DUMP = 2
+&CLRS = 3
+
+#NAND Game
 &SP = 0
 
 %INIT_STACK
