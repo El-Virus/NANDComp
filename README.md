@@ -32,7 +32,7 @@ A = A + 1
 - Some instructions that do not exist within NandGame have been added:
 	- The "MACH" instruction, similar to the C instruction, "ASM", can be used to insert code in a lower level programming language, in this case, machine code.
 		- It takes a single argument, a number (either decimal, binary or hexadecimal) which will be inserted as an instruction.
-	- The "SIM" instruction interacts with the advanced simulator (see below), it takes one or more parameters (defined in macros.srv) separated by a comma.
+	- The "SIM" instruction interacts with the advanced simulator (see below), it takes one or more parameters (defined in macros.src) separated by a comma.
 		- The parameters are: CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be performed or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
 			- The parameters will run in the order in which they're mentioned above.
 
