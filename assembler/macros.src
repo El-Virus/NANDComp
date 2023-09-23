@@ -76,45 +76,42 @@ PUSH_D
 %%
 
 %EQ
+SUB
 POP_D
-POP_A
-D = D - A
-A = ne
-D ;JNE
-D = -1
+A = true
+D; JEQ
+D = 0
 A = end
 JMP
-LABEL ne
-D = 0
+LABEL true
+D = -1
 LABEL end
 PUSH_D
 %%
 
 %GT
+SUB
 POP_D
-POP_A
-D = A - D
-A = ne
-D ;JGT
+A = true
+D; JGT
 D = 0
 A = end
 JMP
-LABEL ne
+LABEL true
 D = -1
 LABEL end
 PUSH_D
 %%
 
 %LT
+SUB
 POP_D
-POP_A
-D = A - D
-A = ne
-D ;JLT
+A = true
+D; JLT
 D = 0
 A = end
 JMP
-LABEL ne
+LABEL true
 D = -1
 LABEL end
 PUSH_D
@@ -133,11 +130,8 @@ JMP
 
 %IF_GOTO $label
 POP_D
-A = end
-D ;JEQ
-A = $label
-JMP
-LABEL end
+A = label
+D; JNE
 %%
 
 %PUSH_MEMORY
