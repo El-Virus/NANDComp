@@ -462,7 +462,8 @@ class Tokenizer {
 			ignore('\t');
 			ignore('_');
 
-			while (work.length() != 0 && iter <= 11) {
+			while (work.length() != 0 && iter <= 17) {
+				debug_log("Iteration: %s", work.c_str());
 				matchNumber();
 				matchExact('+', Tokens::Plus);
 				matchExact('-', Tokens::Minus, true);
@@ -597,7 +598,7 @@ class GrammarChecker {
 				} else if (work.size() == 4 && (matchExact({Tokens::_REG, Tokens::_OPER, Tokens::_REG, Tokens::_JMP}) || (work[0] == Tokens::_REG && tokens[1] == Tokens::Minus && work[2] == Tokens::_REG && work[3] == Tokens::_JMP) || (work[0] == Tokens::_REG && tokens[tokens.size()-3] == Tokens::Plus && work[2] == Tokens::Number && num == 1 && work[3] == Tokens::_JMP))) {
 					return true;
 				}
-			} else { //FIXME: Somehow, "AM, A, D = <label>" fell through
+			} else {
 				//Equal Operations
 
 				//Let's simplify
@@ -904,6 +905,12 @@ void parseLine(std::string line) {
 	debug_inform("Tokenizing line");
 	Tokenizer tokenizer;
 	std::vector<Tokens> tokens = tokenizer.tokenize(line);
+
+	//Optimized out when necessary
+	debug_log("Tokens follow:");
+	for (int i = 0; i < tokens.size(); i++) {
+		debug_log(" %d", tokens[i]);
+	}
 
 	GrammarChecker grammarchecker;
 	if (grammarchecker.check(tokens, tokenizer.simplify(), tokenizer.getNum())) {
