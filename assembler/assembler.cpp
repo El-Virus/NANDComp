@@ -923,7 +923,6 @@ void parseLine(std::string line) {
 	inflvl--; inflvl--;
 }
 
-//TODO: Ban keywords (at the moment, special ops) from being defined as macros
 //TODO: Implement an if macro to check constants, make it nestable
 /**
  * @brief Perform the first pass operations to a source file
@@ -952,7 +951,11 @@ void firstPass(std::vector<std::string> *src) {
 			if (!std::regex_match(str, sm, rx))
 				errExit("Constant definition error", (*src)[i]);
 
-			constants.push_back({getSubStrBAChar(str, '=', true), (unsigned int)getHBDNum(getSubStrBAChar(str, '=', false).c_str())});
+			std::string name = getSubStrBAChar(str, '=', true);
+			if (name == "LABEL" || name == "MACH" || name == "SIM")
+				errExit("Constant named same as keyword", (*src)[i]);
+
+			constants.push_back({name, (unsigned int)getHBDNum(getSubStrBAChar(str, '=', false).c_str())});
 			src->erase(src->begin() + i);
 			debug_log("Defined constant %s with value %u", constants[constants.size() - 1].key.c_str(), constants[constants.size() - 1].value);
 			i--;
@@ -979,6 +982,8 @@ void firstPass(std::vector<std::string> *src) {
 				} else {
 					containsArgs = true;
 					std::vector<std::string> arguments = cutString(name, ' ');
+					if (arguments[0] == "LABEL" || arguments[0] == "MACH" || arguments[0] == "SIM")
+						errExit("Macro named same as keyword", (*src)[i]);
 					arguments.erase(arguments.begin());
 					for (unsigned int j = 0; j < arguments.size(); j++) {
 						arguments[j].erase(std::remove(arguments[j].begin(), arguments[j].end(), '$'), arguments[j].end());
