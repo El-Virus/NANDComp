@@ -1,13 +1,15 @@
+#include "../debug.h"
 #include "../misc.hpp"
 #include <stdio.h>
+#include <ctype.h>
 #include <bitset>
 #include <fstream>
 #include <regex>
+#include <tr1/regex>
 #include <sstream>
 #include <string>
+#include <variant>
 #include <vector>
-
-#include "../debug.h"
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
@@ -44,29 +46,25 @@ enum Tokens {
 	__END__
 };
 
+template <typename T, typename U>
 struct KVP {
-	std::string key;
-	unsigned int value;
-};
-
-struct DS {
-	std::string key;
-	std::string value;
+	T key;
+	U value;
 };
 
 struct Macro {
 	std::string name;
 	std::vector<std::string> instructions;
 	bool shouldBeExpanded;
-	std::vector<DS> arguments;
+	std::vector<KVP<std::string, std::string>> arguments;
 };
 
 std::vector<std::string> bits;
 unsigned int linen = 1;
 std::string currfile;
 bool useDec = false;
-std::vector<KVP> labels;
-std::vector<KVP> constants;
+std::vector<KVP<std::string, unsigned int>> labels;
+std::vector<KVP<std::string, unsigned int>> constants;
 std::vector<Macro> macros;
 
 /**
@@ -80,7 +78,7 @@ std::vector<Macro> macros;
  * @return false if not between
  */
 template <typename T>
-bool isBetween(T min, T x, T max) {
+bool isBetween(const T& min, const T& x, const T& max) {
 	return (min < x && x < max);
 }
 
@@ -94,7 +92,7 @@ bool isBetween(T min, T x, T max) {
  * @return false if not contained
  */
 template <typename T>
-bool vecContains(std::vector<T> v, T x) {
+bool vecContains(const std::vector<T>& v, const T& x) {
 	return (std::find(v.begin(), v.end(), x) != v.end());
 }
 
@@ -106,7 +104,7 @@ bool vecContains(std::vector<T> v, T x) {
  * @param before Whether if to return the part before or after the char
  * @return std::string Substring, string if char not found
  */
-std::string getSubStrBAChar(std::string const& str, const char chr, bool before) {
+std::string getSubStrBAChar(const std::string& str, const char chr, const bool before) {
 	std::string::size_type pos = str.find(chr);
 	if (pos != std::string::npos) {
 		if (before) {
@@ -125,12 +123,12 @@ std::string getSubStrBAChar(std::string const& str, const char chr, bool before)
  * @param delim The character to cut at
  * @return std::vector<std::string> Vector of substrings
  */
-std::vector<std::string> cutString(std::string str, char delim) {
+std::vector<std::string> cutString(const std::string& str, const char delim) {
 	std::stringstream ss(str);
 	std::string segment;
 	std::vector<std::string> seglist;
 
-	while(std::getline(ss, segment, delim)) {
+	while (std::getline(ss, segment, delim)) {
 		seglist.push_back(segment);
 	}
 	return seglist;
@@ -161,7 +159,7 @@ bool replace(std::string& str, const std::string& from, const std::string& to) {
  * @return true if found
  * @return false if not found
  */
-bool labelExists(std::string label) {
+bool labelExists(const std::string& label) {
 	for (SU i = 0; i < labels.size(); i++) {
 		if (labels[i].key == label)
 			return true;
@@ -175,7 +173,7 @@ bool labelExists(std::string label) {
  * @param label The label to fetch
  * @return unsigned int Label position, 0 if not defined
  */
-unsigned int getLabel(std::string label) {
+unsigned int getLabel(const std::string& label) {
 	for (SU i = 0; i < labels.size(); i++) {
 		if (labels[i].key == label)
 			return labels[i].value;
@@ -190,7 +188,7 @@ unsigned int getLabel(std::string label) {
  * @return true if defined
  * @return false if not defined
  */
-bool constantExists(std::string constant) {
+bool constantExists(const std::string& constant) {
 	for (SU i = 0; i < constants.size(); i++) {
 		if (constants[i].key == constant)
 			return true;
@@ -204,7 +202,7 @@ bool constantExists(std::string constant) {
  * @param constant Constant to fetch
  * @return unsigned int Constant value, 0 if not defined
  */
-unsigned int getConstant(std::string constant) {
+unsigned int getConstant(const std::string& constant) {
 	for (SU i = 0; i < constants.size(); i++) {
 		if (constants[i].key == constant)
 			return constants[i].value;
@@ -219,7 +217,7 @@ unsigned int getConstant(std::string constant) {
  * @param str String to apply the regex to
  * @return std::string The matched substring
  */
-std::string getRegex(std::string pattern, std::string str) {
+std::string getRegex(const std::string& pattern, const std::string& str) {
 	std::regex rx(pattern);
 	std::smatch sm;
 	if (std::regex_search(str, sm, rx)) {
@@ -236,12 +234,12 @@ std::string getRegex(std::string pattern, std::string str) {
  * @param str String
  * @return int Decimal representation
  */
-int getHBDNum(std::string str) {
-	std::string ret = getRegex("(0b)[0-1]+", str);
+int getHBDNum(const std::string& str) {
+	std::string ret = getRegex("0b[0-1]+", str);
 	if (ret != "")
 		return stoi(ret.substr(2), (size_t *)nullptr, 2);
 	
-	ret = getRegex("(0x)[0-9a-fA-F]+", str);
+	ret = getRegex("0x[0-9a-fA-F]+", str);
 	if (ret != "")
 		return stoi(ret.substr(2), (size_t *)nullptr, 16);
 	
@@ -249,7 +247,41 @@ int getHBDNum(std::string str) {
 	if (ret != "")
 		return atoi(ret.c_str());
 	
-	return 0;
+	throw "Unable to obtain number";
+}
+
+/**
+ * @brief Returns the number of digits of a number in a string at a certain position
+ * 
+ * @param str String where number is located
+ * @param at Position of the number
+ * @return size_t Number of digits
+ */
+size_t countNumberDigits(const std::string& str, const size_t at) {
+	int n = 1;
+	size_t str_sz = str.size();
+	char ll1, ll2, ll3, ul1, ul2, ul3;
+	ll1 = ll2 = ll3 = '0';
+	ul1 = ul2 = ul3 = '9'; 
+
+	if (str[at] == '0') {
+		if (str[at + 1] == 'b') {
+			n++;
+			ul1 = ul2 = ul3 = '1';
+		} else if (str[at + 1] == 'x') {
+			n++;
+			ll2 = 'a';
+			ul2 = 'f';
+			ll3 = 'A';
+			ul3 = 'F';
+		}
+	}
+
+	while ((at + n) < str_sz && ((str[at + n] >= ll1 && str[at + n] <= ul1) || \
+		(str[at + n] >= ll2 && str[at + n] <= ul2) || (str[at + n] >= ll3 && str[at + n] <= ul3)))
+		++n;
+
+	return n;
 }
 
 /**
@@ -260,7 +292,7 @@ int getHBDNum(std::string str) {
  * @return true if contained
  * @return false if not contained
  */
-bool stringContains(std::string container, std::string containee) {
+bool stringContains(const std::string& container, const std::string& containee) {
 	return (container.find(containee) != std::string::npos);
 }
 
@@ -272,7 +304,7 @@ bool stringContains(std::string container, std::string containee) {
  * @return true if contained
  * @return false if not
  */
-bool vectorContains(std::vector<std::string> vec, std::string containee) {
+bool vectorContains(const std::vector<std::string>& vec, const std::string& containee) {
 	for (unsigned int i = 0; i < vec.size(); i++) {
 		if (stringContains(vec[i], containee))
 			return true;
@@ -281,19 +313,26 @@ bool vectorContains(std::vector<std::string> vec, std::string containee) {
 }
 
 /**
- * @brief Check wether a character is a number
+ * @brief Get the position of the maximum value in a vector
  * 
- * @param c Char
- * @return true if character is a number
- * @return false if character is not a number
+ * @tparam T Type of element in vector
+ * @param vec Vector
+ * @return size_t Position of the maximum value
  */
-bool isNumber(char c) {
-	std::string str(1, c);
-	std::string ret = getRegex("[0-9]+", str);
-	if (ret != "")
-		return true;
-	
-	return false;
+template <typename T>
+size_t getMaxValIdx(const std::vector<T>& vec) {
+	size_t vec_sz = vec.size();
+	if (!vec_sz)
+		return 0;
+	size_t max_pos = 0;
+	T max = vec[0];
+	for (size_t i = 1; i < vec_sz; i++) {
+		if (vec[i] > max) {
+			max = vec[i];
+			max_pos = i;
+		}
+	}
+	return max_pos;
 }
 
 /**
@@ -303,10 +342,289 @@ bool isNumber(char c) {
  * @param line Line where the error is present
  * @param code Exit code
  */
-void errExit(std::string message, std::string line, int code = 1) {
+[[noreturn]] void errExit(std::string message, std::string line, int code = 1) {
 	printf("%s on [%s](expanding includes), (%s). Check your Syntax.\n", message.c_str(), line.c_str(), currfile.c_str());
 	exit(code);
 }
+
+class PreExpr {
+	public:
+		/**
+		 * @brief Finds the corresponding closing parenthesis to a level
+		 * 
+		 * @param expr String to operate on
+		 * @param from The position of first character inside the parenthesis
+		 * @return size_t The position of the closing parenthesis
+		 */
+		static size_t findClosing(const std::string& expr, size_t from) {
+			++inflvl;
+			unsigned int open = 0;
+			size_t expr_sz = expr.size();
+			for (size_t i = from; i < expr_sz; i++) {
+				if (expr[i] == '(') {
+					open++;
+				} else if (expr[i] == ')') {
+					if (!open) {
+						debug_log("Closing for %lu at %lu \n", from, i);
+						--inflvl;
+						return i;
+					}
+					open--;
+				}
+			}
+			--inflvl;
+			errExit("Parenthesis not closed properly on preprocessor expresion", "");
+		}
+	protected:
+		enum PEP {
+			Expression,
+			BitwiseOR,
+			BitwiseXOR,
+			BitwiseAND,
+			AddSub,
+			MulDivMod,
+			BitwiseNOT
+		};
+
+		/**
+		 * @brief Gets the priority of an expression
+		 * 
+		 * @param expr Expression
+		 * @return PEP Priority
+		 */
+		static PEP getExprPriority(const std::variant<int, char, PreExpr>& expr) {
+			if (std::holds_alternative<int>(expr) || std::holds_alternative<PreExpr>(expr)) {
+				return PEP::Expression;
+			} else {
+				char op = std::get<char>(expr);
+				switch (op) {
+					case '~':
+					case '!':
+						return PEP::BitwiseNOT;
+
+					case '*':
+					case '/':
+					case '%':
+						return PEP::MulDivMod;
+
+					case '+':
+					case '-':
+						return PEP::AddSub;
+
+					case '&':
+						return PEP::BitwiseAND;
+
+					case '^':
+						return PEP::BitwiseXOR;
+
+					case '|':
+						return PEP::BitwiseOR;
+					
+					default:
+						errExit("Unrecognized character when evaluating preprocessor expression", std::to_string(op));
+						break;
+				}
+			}
+		}
+
+		typedef struct {
+			int first;
+			char oper;
+			int second;
+		} operation_chain_t;
+
+		/**
+		 * @brief Performs the operation on op.oper to op.first (and op.second)
+		 * 
+		 * @param op Operation chain
+		 * @return int Result of the operation
+		 */
+		static int operate(operation_chain_t op) {
+			switch (op.oper) {
+				case '~':
+				case '!':
+					return ~op.first;
+
+				case '*':
+					return op.first * op.second;
+				case '/':
+					return op.first / op.second;
+				case '%':
+					return op.first % op.second;
+
+				case '+':
+					return op.first + op.second;
+				case '-':
+					return op.first - op.second;
+
+				case '&':
+					return op.first & op.second;
+
+				case '^':
+					return op.first ^ op.second;
+
+				case '|':
+					return op.first | op.second;
+				
+				default:
+					errExit("Unrecognized character when evaluating preprocessor expression", "");
+					break;
+			}
+		}
+
+		std::vector<std::variant<int, char, PreExpr>> chain;
+
+		/**
+		 * @brief Evaluates an element of the chain
+		 * 
+		 * @param which The index of the element to evaluate
+		 * @param pchain A pointer of the chain priority vector, if any
+		 * @param can_operate Wether an operation will be evaluated, externally should be true
+		 * @return int The result of the evaluation
+		 */
+		int eval_element(size_t which, std::vector<PEP>* pchain = NULL, bool can_operate = true) {
+			if (std::holds_alternative<PreExpr>(chain[which])) {
+				return std::get<PreExpr>(chain[which]).eval();
+			} else if (std::holds_alternative<int>(chain[which])) {
+				return std::get<int>(chain[which]);
+			} else { //Operation
+				operation_chain_t op;
+				op.oper = std::get<char>(chain[which]);
+				if (which == 0 && !(op.oper == '~' || op.oper == '!'))
+					errExit("First element of preprocessor expression is an operation", "");
+				if (which == chain.size() - 1)
+					errExit("Last element of preprocessor expression is an operator", "");
+				
+				//Handle negative numbers
+				if (op.oper == '-' && !std::holds_alternative<char>(chain[which + 1]) &&
+					(!can_operate || std::holds_alternative<char>(chain[which - 1]))) {
+						which++;
+						op.first = -1;
+						op.oper = '*';
+						op.second = eval_element(which, pchain, false);
+						chain.erase(chain.begin() + which);
+						if (pchain != NULL)
+							pchain->erase(pchain->begin() + which);						
+						goto operation;
+				}
+
+				if (!can_operate) {
+					if (op.oper != '-' || std::holds_alternative<char>(chain[which + 1]))
+						errExit("There are two consecutive operations in preprocessor expression", "");
+					//Else, we just want to negate the symbol of the next expression
+					return (-1 * eval_element(which + 1, NULL, false));
+				}
+
+				op.first = eval_element(which - 1, pchain, false);
+				chain.erase(chain.begin() + (which - 1));
+				if (pchain != NULL)
+					pchain->erase(pchain->begin() + (which - 1));
+
+				if (!(op.oper == '~' || op.oper == '!')) {
+					op.second = eval_element(which, pchain, false);
+					chain.erase(chain.begin() + which);
+					if (pchain != NULL)
+						pchain->erase(pchain->begin() + which);
+				}
+
+operation:
+				chain[which - 1] = operate(op);
+				if (pchain != NULL)
+					(*pchain)[which - 1] = PEP::Expression;
+
+				return eval_element(which - 1, NULL, false);
+			}
+		}
+
+	public:
+		/**
+		 * @brief Constructs a PreExpr object by parsing an expression
+		 * 
+		 * @param expr Expression to parse
+		 */
+		PreExpr(const std::string& expr) {
+			++inflvl;
+			size_t expr_sz = expr.size();
+
+#if DBLVL >= DBLVL_DEBUG
+			debug_log("Evaluating expr:");
+			_debug_log_header();
+			printf("%s\n", expr.c_str());
+			for (int i = 1; i < expr_sz; i *= 10) {
+				_debug_log_header();
+				for (int j = 0; j < expr_sz; j += i) {
+					printf("%c", (j / i) % 10 + '0');
+					for (int k = 1; k < i; k++) {
+						printf(" ");
+					}
+				}
+				printf("\n");
+			}
+#endif
+
+			for (size_t i = 0; i < expr_sz; i++) {
+				if (isdigit(expr[i])) {
+					size_t cnt = countNumberDigits(expr, i);
+					chain.push_back(getHBDNum(expr.substr(i, cnt)));
+					i += (cnt - 1);
+				} else {
+					switch (expr[i]) {
+						case '(': {
+							fflush(NULL);
+							i++;
+							size_t closing = findClosing(expr, i);
+							chain.push_back(PreExpr(expr.substr(i, closing - i)));
+							i = closing;
+							continue;
+						}
+
+						default:
+							fflush(NULL);
+							if (!isspace(expr[i]))
+								chain.push_back(expr[i]);
+							break;
+					}
+				}
+			}
+			--inflvl;
+		}
+
+		/**
+		 * @brief Evaluates the expression chain
+		 * 
+		 * @return int Result of the chain evaluation
+		 */
+		int eval() {
+			++inflvl;
+			size_t chain_sz = chain.size();
+			std::vector<PEP> priorities(chain_sz);
+			for (size_t i = 0; i < chain_sz; i++) {
+				priorities[i] = getExprPriority(chain[i]);
+#if 0
+				if (std::holds_alternative<int>(chain[i])) {
+					printf("s%hi", std::get<int>(chain[i]));
+				} else if (std::holds_alternative<char>(chain[i])) {
+					printf("c%c", std::get<char>(chain[i]));
+				} else {
+					printf(",( ");
+					std::get<PreExpr>(chain[i]).eval();
+					printf(")");
+				}
+				printf(" ");
+				return 0;
+#else
+			}
+			
+			while (chain.size() > 1) {
+				size_t at = getMaxValIdx(priorities);
+				eval_element(at, &priorities);
+			}
+
+			--inflvl;
+			return eval_element(0);
+#endif
+		}
+};
 
 class Tokenizer {
 	private:
@@ -320,7 +638,7 @@ class Tokenizer {
 		 * 
 		 * @param c Char to remove
 		 */
-		void ignore(char c) {
+		void ignore(const char c) {
 			work.erase(std::remove(work.begin(), work.end(), c), work.end());
 		}
 
@@ -333,7 +651,7 @@ class Tokenizer {
 		 * @param type Type of term matched by the pattern
 		 * @return std::string The matched string
 		 */
-		std::string matchRegex(std::string pattern, Tokens type) {
+		std::string matchRegex(const std::string& pattern, const Tokens type) {
 			std::regex rx(pattern);
 			std::smatch sm;
 			if (std::regex_search(work, sm, rx)) {
@@ -354,7 +672,7 @@ class Tokenizer {
 		 * @param c Character to match
 		 * @param type Type of term matched by the character
 		 */
-		void matchExact(char c, Tokens type) {
+		void matchExact(const char c, const Tokens type) {
 			if (work[0] == c) {
 				res.push_back(type);
 				work.erase(0, 1);
@@ -368,7 +686,7 @@ class Tokenizer {
 		 * @param c String to match
 		 * @param type Type of term matched by the string
 		 */
-		void matchExact(std::string c, Tokens type) {
+		void matchExact(const std::string& c, const Tokens type) {
 			for (SU i = 0; i < c.size(); i++) {
 				if (work[i] != c[i])
 					return;
@@ -386,7 +704,7 @@ class Tokenizer {
 		 * @param type Type of term matched by the character
 		 * @param checknum Whether to try match a number
 		 */
-		void matchExact(char c, Tokens type, bool checknum) {
+		void matchExact(const char c, const Tokens type, const bool checknum) {
 			if (checknum) {
 				std::string ret = matchRegex("-?[0-9]+", Tokens::Number);
 				if (ret != "")
@@ -541,7 +859,7 @@ class GrammarChecker {
 		 * @return true if it exactly matches
 		 * @return false if it does not match exactly
 		 */
-		bool matchExact(std::vector<Tokens> c) {
+		bool matchExact(const std::vector<Tokens>& c) {
 			for (SU i = 0; i < c.size(); i++) {
 				if (work[i] != c[i])
 					return false;
@@ -637,7 +955,7 @@ class CodeGenerator {
 		 * 
 		 * @param token Destination token
 		 */
-		void pullDest(Tokens token) {
+		void pullDest(const Tokens token) {
 			if (token == Tokens::A) {
 				work.b[InstructionMap::A] = 1;
 			} else if (token == Tokens::AM) {
@@ -652,7 +970,7 @@ class CodeGenerator {
 		 * 
 		 * @param token Jmp token
 		 */
-		void pullJump(Tokens token) {
+		void pullJump(const Tokens token) {
 			if (token == Tokens::JEQ) {
 				work.b[EQ] = 1;
 			} else if (token == Tokens::JNE) {
@@ -682,7 +1000,7 @@ class CodeGenerator {
 		 * @return true if it exactly matches
 		 * @return false if it does not match exactly
 		 */
-		bool matchExact(std::vector<Tokens> c) {
+		bool matchExact(const std::vector<Tokens>& c) {
 			for (SU i = 0; i < c.size(); i++) {
 				if (twork[i] != c[i])
 					return false;
@@ -696,7 +1014,7 @@ class CodeGenerator {
 		 * @param dec Decimal number
 		 * @return std::string String of bits
 		 */
-		std::string decToBin(short dec) {
+		std::string decToBin(const short dec) {
 			return std::bitset<16>(dec).to_string();
 		}
 	public:
@@ -926,7 +1244,7 @@ void parseLine(std::string line) {
 //TODO: Implement an if macro to check constants, make it nestable
 /**
  * @brief Perform the first pass operations to a source file
- * 		AKA: Remove comments, define constants & parse macros 
+ * 		AKA: Remove comments, define constants, evaluate preprocessor expressions & parse macros 
  * @param src 
  */
 void firstPass(std::vector<std::string> *src) {
@@ -946,7 +1264,7 @@ void firstPass(std::vector<std::string> *src) {
 			str.erase(str.begin());
 			str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
 
-			std::regex rx("^[a-zA-Z]+=(0b|0x)?[0-9a-fA-F]+$");
+			std::regex rx("^[a-zA-Z]+=(?:0b[01]+|0x[0-9a-fA-F]+|-?[0-9]+)$");
 			std::smatch sm;
 			if (!std::regex_match(str, sm, rx))
 				errExit("Constant definition error", (*src)[i]);
@@ -962,14 +1280,48 @@ void firstPass(std::vector<std::string> *src) {
 		}
 	}
 
-	debug_inform("Parsing macros");
+	debug_inform("Evaluating preprocessor expressions");
 	for (unsigned int i = 0; i < src->size(); i++) {
+		if (size_t p = (*src)[i].find(",("); p != std::string::npos) {
+			inflvl++;
+			size_t t = PreExpr::findClosing((*src)[i], p + 2);
+			debug_log("Evaluating expression: %s", (*src)[i].substr(p, t - (p - 1)).c_str());
+
+			//Replace constants
+			inflvl++;
+			std::string e = (*src)[i].substr(p + 2, t - (p + 2));
+			std::string::const_iterator iter = e.cbegin();
+			std::regex rx("(?:\\s|\\(|^)([a-zA-Z]+)(?:\\s|\\)|$)");
+			std::smatch match;
+			while (regex_search(iter, e.cend(), match, rx)) {
+				if (std::string str = match[1].str(); constantExists(str)) {
+					debug_log("Replacing constant in expression: %s", str.c_str());
+					e.erase(match.position(1), str.length());
+					e.insert(match.position(1), std::to_string(getConstant(str)));
+					iter = e.cbegin();
+				} else {
+					iter = match.suffix().first;
+				}
+			}
+			inflvl--;
+
+			PreExpr expr(e);
+			(*src)[i].erase(p, t - (p - 1));
+			(*src)[i].insert(p, std::to_string(expr.eval()));
+			debug_log("Expansion after evaluation: %s", (*src)[i].c_str());
+			inflvl--;
+			i--; //Reprocess line for more expressions
+		}
+	}
+
+	debug_inform("Parsing macros");
+	for (unsigned int i = 0; i < src->size(); i++) { //TODO: VA_ARGS for macros ($$) -> ($0$, $1$, $2$, ...) + ($|$ -> ,($0$ | $1$ | ...))
 		if ((*src)[i][0] == '%') {
 			inflvl++;
 			std::string name = (*src)[i];
 			name.erase(name.begin());
 			bool containsArgs = false;
-			std::vector<DS> args;
+			std::vector<KVP<std::string, std::string>> args;
 			debug_inform("Parsing macro %s", name.c_str());
 			inflvl++;
 
@@ -1032,7 +1384,7 @@ void firstPass(std::vector<std::string> *src) {
 				std::vector<std::string> instructions;
 				for (unsigned int j = 0; j < macro.size(); j++) {
 					macro[j].erase(std::remove(macro[j].begin(), macro[j].end(), ' '), macro[j].end());
-					if (!(stringContains(macro[j], "LABEL") || stringContains(macro[j], "$") || (macro[j][0] == 'A' && macro[j][1] == '=' && !isNumber(macro[j][2])))) {
+					if (!(stringContains(macro[j], "LABEL") || stringContains(macro[j], "$") || (macro[j][0] == 'A' && macro[j][1] == '=' && !isdigit(macro[j][2])))) {
 						parseLine(macro[j]);
 						instructions.push_back("\\ci" + bits[0]);
 						bits.clear();
@@ -1057,7 +1409,7 @@ void firstPass(std::vector<std::string> *src) {
  * @param ret Whether if file *has* to be opened
  * @return std::fstream File stream to opened file
  */
-std::fstream openFile(std::string filename, bool ret = true) {
+std::fstream openFile(const std::string& filename, const bool ret = true) {
 	std::fstream file;
 	file.open(filename);
 	if (!file.is_open() && ret) {
@@ -1074,7 +1426,7 @@ std::fstream openFile(std::string filename, bool ret = true) {
  * @param ret Whether if file *has* to be processed
  * @return std::vector<std::string> Processed lines
  */
-std::vector<std::string> fileFirstPass(std::string filename, bool ret = true) {
+std::vector<std::string> fileFirstPass(const std::string& filename, const bool ret = true) {
 	std::fstream file = openFile(filename, ret);
 	if (file.is_open()) {
 		std::vector<std::string> data;
@@ -1257,7 +1609,7 @@ void parseSource(std::vector<std::string> src) {
 int main(int argc, char **argv) {
 	std::string filename;
 	if (argc < 2 || argc > 3) {
-		printf("Usage: %s [-d] <program.src>", argv[0]);
+		printf("Usage: %s [-d] <program.src>\n", argv[0]);
 		return 1;
 	} else if (argc == 2) {
 		filename = argv[1];
@@ -1267,12 +1619,12 @@ int main(int argc, char **argv) {
 		filename = argv[2];
 	}
 	
+	debug_inform("Processing macros file");
+	fileFirstPass("macros.src", false);
+
 	debug_inform("First pass on source");
 	std::vector<std::string> src;
 	src = fileFirstPass(filename);
-	
-	debug_inform("Processing macros file");
-	fileFirstPass("macros.src", false);
 
 	debug_inform("Parsing source");
 	currfile = filename;

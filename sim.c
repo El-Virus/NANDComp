@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 	char *filename;
 	//Parse args
     if (argc < 2 || argc > 3) {
-        printf("Usage: %s [-d] <program.bit>", argv[0]);
+        printf("Usage: %s [-d] <program.bit>\n", argv[0]);
         return 1;
     } else if (argc == 2) {
         filename = argv[1];

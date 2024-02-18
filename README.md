@@ -29,15 +29,18 @@ A = A + 1
 ```
 - Files can be included by inserting a '@' character before a filename (That line will be replaced with the code in the file).
 - The assembler will look for "macros.src" and include it automatically (Note that only constants and macros will be parsed unless manually included).
+- You can declare labels by using the LABEL keyword
 - Some instructions that do not exist within NandGame have been added:
 	- The "MACH" instruction, similar to the C instruction, "ASM", can be used to insert code in a lower level programming language, in this case, machine code.
 		- It takes a single argument, a number (either decimal, binary or hexadecimal) which will be inserted as an instruction.
 	- The "SIM" instruction interacts with the advanced simulator (see below), it takes one or more parameters (defined in macros.src) separated by a comma.
 		- The parameters are: CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be performed or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
 			- The parameters will run in the order in which they're mentioned above.
+- The preprocessor will evaluate the contents of basic arithmeticological operations
+	- The preprocessor will work with numbers up to INT_MAX, but keep in mind that the the maximum number in a "A = num" instruction is SHORT_MAX
 
 ### Compiling the Assembler
-Just compile the Assembler and Misc CPP files.
+Just compile the Assembler and Misc CPP files with a C++17 capable compiler.
 
 ## Advanced simulator (sim.c)
 For those who are interested on running code, rather than looking at a code based implementation the of NandGame computer and being able to run code slowly, can use the faster advanced simulator, which will understand "SIM" instructions (mentioned above) that make code easier to debug.
