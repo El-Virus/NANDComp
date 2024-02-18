@@ -36,7 +36,7 @@ A = A + 1
 	- The "SIM" instruction interacts with the advanced simulator (see below), it takes one or more parameters (defined in macros.src) separated by a comma.
 		- The parameters are: CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be performed or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
 			- The parameters will run in the order in which they're mentioned above.
-- The preprocessor will evaluate the contents of basic arithmeticological operations
+- The preprocessor will evaluate the contents of basic arithmeticological operations inside of ",()" Eg. `A = ,((5 + 1) / 2 | 4)` will be evaluated to `A = 7`
 	- The preprocessor will work with numbers up to INT_MAX, but keep in mind that the the maximum number in a "A = num" instruction is SHORT_MAX
 
 ### Compiling the Assembler
