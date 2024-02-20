@@ -20,23 +20,35 @@ The assembler, is a little program that assembles code as described in the offic
 
 ### The language
 - Constants are defined by specifying a '&' character before name = value. Eg. `&constVal = 0`.
-- Macros are defined by adding a '%' character before the name, and a '$' sign before the arguments. Macros end with "%%". eg:
+- Macros are defined by adding a '%' character before the name, and a '$' sign before the arguments. Macros end with "%%".
+	- Macros allow for variadic arguments with "$$", which can be accessed with "$i$" where i is the index of the vargument, it also allows for the combination of all vargs using a certain operation (In order to be evaluated by the preprocessor (see below))
+E.g.
 ```
 %MACRO_NAME $arg
 A = $arg
 A = A + 1
 %%
+
+%EG_VARGS_MACRO $fixed $$ $this_arg_will_be_ignored
+#A will be set to the 2nd variadic argument, in this case the 3rd argument
+A = $1$
+D = A
+#This will expand into ,($fixed * ($0$ + $1$ + $2$ + ...)) to be evaluated by the preprocessor
+A = ,($fixed * ($+$))
+%%
+
+#This will set D to 6 and A to 32 (4 * (2 + 6))
+EG_VARGS_MACRO 4 2 6
 ```
 - Files can be included by inserting a '@' character before a filename (That line will be replaced with the code in the file).
 - The assembler will look for "macros.src" and include it automatically (Note that only constants and macros will be parsed unless manually included).
 - You can declare labels by using the LABEL keyword
-- Some instructions that do not exist within NandGame have been added:
-	- The "MACH" instruction, similar to the C instruction, "ASM", can be used to insert code in a lower level programming language, in this case, machine code.
-		- It takes a single argument, a number (either decimal, binary or hexadecimal) which will be inserted as an instruction.
-	- The "SIM" instruction interacts with the advanced simulator (see below), it takes one or more parameters (defined in macros.src) separated by a comma.
-		- The parameters are: CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be performed or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
-			- The parameters will run in the order in which they're mentioned above.
-- The preprocessor will evaluate the contents of basic arithmeticological operations inside of ",()" Eg. `A = ,((5 + 1) / 2 | 4)` will be evaluated to `A = 7`
+- An additional instruction that does not exist within NandGame, "MACH", has been added, similar to the C instruction, "ASM", can be used to insert code in a lower level programming language, in this case, machine code.
+	- It takes a single argument, a number (either decimal, binary or hexadecimal) which will be inserted as an instruction.
+- The "SIM" macro (defined in macros.src) interacts with the advanced simulator (see below), it takes one or more parameters:
+	- The parameters are: CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be performed or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
+		- The parameters will run in the order in which they're mentioned above.
+- The preprocessor will evaluate the contents of basic arithmeticological operations (~ (or !) * / % + - & ^ (XOR) |) inside of ",()" according to the order of operations. Eg. `A = ,(4 | (5 + 1) / 2)` will be evaluated to `A = 7`
 	- The preprocessor will work with numbers up to INT_MAX, but keep in mind that the the maximum number in a "A = num" instruction is SHORT_MAX
 
 ### Compiling the Assembler

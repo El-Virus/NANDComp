@@ -42,14 +42,13 @@ enum Tokens {
 	JMP,
 	_SPECIAL,
 	Machine,
-	Simulator,
 	__END__
 };
 
-template <typename T, typename U>
+template <typename T1, typename T2>
 struct KVP {
-	T key;
-	U value;
+	T1 key;
+	T2 value;
 };
 
 struct Macro {
@@ -57,6 +56,7 @@ struct Macro {
 	std::vector<std::string> instructions;
 	bool shouldBeExpanded;
 	std::vector<KVP<std::string, std::string>> arguments;
+	bool hasVariadicArgs;
 };
 
 std::vector<std::string> bits;
@@ -153,33 +153,33 @@ bool replace(std::string& str, const std::string& from, const std::string& to) {
 }
 
 /**
- * @brief Check if a label has been defined
+ * @brief Check if a vector contains an entry with a matching key
  * 
- * @param label Label to find
- * @return true if found
- * @return false if not found
+ * @tparam T1 Key type
+ * @tparam T2 Value type
+ * @param vec Vector of KVPs
+ * @param match Key to match
+ * @return true If vector contains an entry with a matching key
+ * @return false If not
  */
-bool labelExists(const std::string& label) {
-	for (SU i = 0; i < labels.size(); i++) {
-		if (labels[i].key == label)
+template <typename T1, typename T2>
+bool kvpKeyExistsInVec(const std::vector<KVP<T1, T2>>& vec, const T1& match) {
+	size_t vec_sz = vec.size();
+	for (size_t i = 0; i < vec_sz; i++) {
+		if (vec[i].key == match)
 			return true;
 	}
 	return false;
 }
 
 /**
- * @brief Get the position of a label
+ * @brief Check if a label has been defined
  * 
- * @param label The label to fetch
- * @return unsigned int Label position, 0 if not defined
+ * @param label Label to find
+ * @return true if found
+ * @return false if not found
  */
-unsigned int getLabel(const std::string& label) {
-	for (SU i = 0; i < labels.size(); i++) {
-		if (labels[i].key == label)
-			return labels[i].value;
-	}
-	return 0;
-}
+inline bool labelExists(const std::string& label) { return kvpKeyExistsInVec<std::string, unsigned int>(labels, label); };
 
 /**
  * @brief Check if a constant has been defined
@@ -188,13 +188,34 @@ unsigned int getLabel(const std::string& label) {
  * @return true if defined
  * @return false if not defined
  */
-bool constantExists(const std::string& constant) {
-	for (SU i = 0; i < constants.size(); i++) {
-		if (constants[i].key == constant)
-			return true;
+inline bool constantExists(const std::string& constant) { return kvpKeyExistsInVec<std::string, unsigned int>(constants, constant); };
+
+/**
+ * @brief Return the value for a certain KVP in a vector given its key
+ * 
+ * @tparam T1 Key type
+ * @tparam T2 Value type
+ * @param vec Vector of KVPs
+ * @param key Key to match
+ * @return T2 Value
+ */
+template <typename T1, typename T2>
+T2 getKVPValInVec(const std::vector<KVP<T1, T2>>& vec, const T1& key) {
+	size_t vec_sz = vec.size();
+	for (size_t i = 0; i < vec_sz; i++) {
+		if (vec[i].key == key)
+			return vec[i].value;
 	}
-	return false;
+	return (T2)0;
 }
+
+/**
+ * @brief Get the position of a label
+ * 
+ * @param label The label to fetch
+ * @return unsigned int Label position, 0 if not defined
+ */
+inline unsigned int getLabel(const std::string& label) { return getKVPValInVec<std::string, unsigned int>(labels, label); };
 
 /**
  * @brief Get the value of a constant
@@ -202,12 +223,20 @@ bool constantExists(const std::string& constant) {
  * @param constant Constant to fetch
  * @return unsigned int Constant value, 0 if not defined
  */
-unsigned int getConstant(const std::string& constant) {
-	for (SU i = 0; i < constants.size(); i++) {
-		if (constants[i].key == constant)
-			return constants[i].value;
+inline unsigned int getConstant(const std::string& constant) { return getKVPValInVec<std::string, unsigned int>(constants, constant); };
+
+/**
+ * @brief Returns the pointer to a macro given its name
+ * 
+ * @param macro Name of the macro
+ * @return Macro* Macro pointer
+ */
+Macro* getMacro(const std::string& macro) {
+	for (SU i = 0; i < macros.size(); i++) {
+		if (macros[i].name == macro)
+			return &(macros[i]);
 	}
-	return 0;
+	return NULL;
 }
 
 /**
@@ -292,7 +321,7 @@ size_t countNumberDigits(const std::string& str, const size_t at) {
  * @return true if contained
  * @return false if not contained
  */
-bool stringContains(const std::string& container, const std::string& containee) {
+inline bool stringContains(const std::string& container, const std::string& containee) {
 	return (container.find(containee) != std::string::npos);
 }
 
@@ -718,31 +747,15 @@ class Tokenizer {
 		 * 			If matched, set num to match and push the Number type to res
 		 */
 		void matchLabelConstant() {
-			std::string constlabel;
-			if (res[0] == Tokens::Simulator) {
-				//Handle simulator instruction
-				constlabel = getSubStrBAChar(work, ',', true);
-				if (constantExists(constlabel)) {
-					/*
-					HACK: In order to avoid implementing another type or multiple numbers
-					per instruction, we store the numbers as tokens past their end value.
-					Given that the way we handle simulator is independent from other instructions
-					we can decode the desired values later
-					*/
-					res.push_back((Tokens)(Tokens::__END__ + getConstant(constlabel)));
-					work.erase(0, constlabel.length());
-				}
-			} else {
-				constlabel = getSubStrBAChar(work, ';', true);
-				if (labelExists(constlabel)) {
-					num = getLabel(constlabel);
-					res.push_back(Tokens::Number);
-					work.erase(0, constlabel.length());
-				} else if (constantExists(constlabel)) {
-					num = getConstant(constlabel);
-					res.push_back(Tokens::Number);
-					work.erase(0, constlabel.length());
-				}
+			std::string constlabel = getSubStrBAChar(work, ';', true);
+			if (labelExists(constlabel)) {
+				num = getLabel(constlabel);
+				res.push_back(Tokens::Number);
+				work.erase(0, constlabel.length());
+			} else if (constantExists(constlabel)) {
+				num = getConstant(constlabel);
+				res.push_back(Tokens::Number);
+				work.erase(0, constlabel.length());
 			}
 			//iter = 0;
 		}
@@ -801,7 +814,6 @@ class Tokenizer {
 				matchExact(";JLE", Tokens::JLE);
 				matchRegex(";?JMP", Tokens::JMP);
 				matchExact("MACH", Tokens::Machine);
-				matchExact("SIM", Tokens::Simulator);
 				matchLabelConstant();
 				iter++;
 			}
@@ -889,16 +901,6 @@ class GrammarChecker {
 				if (tokens[0] == Tokens::Machine) {
 					if (tokens.size() == 2 && tokens[1] == Number)
 						return true;
-				} else if (tokens[0] == Tokens::Simulator) {
-					if (tokens.size() == 1) {
-						printf("Simulator instruction missing its parameters\n");
-						return false;
-					}
-					for (int i = 1; i < tokens.size(); i++){
-						if (tokens[i] < Tokens::__END__ && tokens[i] != Tokens::Coma)
-							printf("Simulator instruction only accepts simulator specific values\n");
-						return true;
-					}
 				} else {
 					printf("Special token check not implemented");
 				}
@@ -1052,27 +1054,6 @@ class CodeGenerator {
 							bits.push_back(decToBin(num));
 						}
 					}
-				} else if (tokens[0] == Tokens::Simulator) {
-					debug_log(" Simulator");
-					work.b[CI] = 1;
-					work.b[__NULL3__] = 1;
-
-					for (int i = 1; i < tokens.size(); i++) {
-						if (tokens[i] == Tokens::Coma)
-							continue;
-						
-						int index = (tokens[i] - Tokens::__END__); //Convert back to the correct number
-						if (index > 13)
-							errExit("Simulator var higher than allowed", "N/A");
-						
-						work.b[index] = 1;
-					}
-
-					if (useDec) {
-						bits.push_back(std::to_string(composeWord(work)));
-					} else {
-						bits.push_back(decToBin(composeWord(work)));
-					}
 				} else {
 					errExit("Special operation implementation missing", "N/A");
 				}
@@ -1205,13 +1186,11 @@ class CodeGenerator {
  */
 void parseLine(std::string line) {
 	inflvl++; debug_inform("Parsing line: %s", line.c_str()); inflvl++; 
-	for (unsigned int i = 0; i < macros.size(); i++) {
-		if (line == macros[i].name) {
+	if (Macro *macro = getMacro(line); macro != NULL) {
 			debug_inform("Expanding macro %s", line.c_str());
-			bits.insert(std::end(bits), std::begin(macros[i].instructions), std::end(macros[i].instructions));
+			bits.insert(bits.end(), macro->instructions.begin(), macro->instructions.end());
 			inflvl--; inflvl--;
 			return;
-		}
 	}
 
 	if (line.substr(0, 3) == "\\ci") {
@@ -1239,6 +1218,48 @@ void parseLine(std::string line) {
 		errExit("Grammar Check failed", line);
 	}
 	inflvl--; inflvl--;
+}
+
+/**
+ * @brief Evaluate preprocessor expressions on a line
+ * 
+ * @note This function effectively adapts the PreExpr class into the assembler:
+ * 			It handles assembler specific syntax ",()", skips non-substituted arguments,
+ * 			expands constants and replaces the result into the line
+ * @param line Pointer to evaluated line
+ */
+void evalLineExpr(std::string *line) {
+	inflvl++;
+	for (size_t p = line->find(",("); p != std::string::npos; p = line->find(",(")) {
+		size_t t = PreExpr::findClosing(*line, p + 2);
+		std::string e = line->substr(p + 2, t - (p + 2));
+		if (e.find('$') != std::string::npos)
+			break; //Do not evaluate expressions with non-substituted arguments
+		debug_log("Evaluating expression: ,(%s)", e.c_str());
+
+		//Replace constants
+		inflvl++;
+		std::string::const_iterator iter = e.cbegin();
+		std::regex rx("(?:\\s|\\(|^)([a-zA-Z]+)(?:\\s|\\)|$)");
+		std::smatch match;
+		while (regex_search(iter, e.cend(), match, rx)) {
+			if (std::string str = match[1].str(); constantExists(str)) {
+				debug_log("Replacing constant in expression: %s", str.c_str());
+				e.erase(match.position(1), str.length());
+				e.insert(match.position(1), std::to_string(getConstant(str)));
+				iter = e.cbegin();
+			} else {
+				iter = match.suffix().first;
+			}
+		}
+		inflvl--;
+
+		PreExpr expr(e);
+		line->erase(p, t - (p - 1));
+		line->insert(p, std::to_string(expr.eval()));
+		debug_log("Expansion after evaluation: %s", line->c_str());
+	}
+	inflvl--;
 }
 
 //TODO: Implement an if macro to check constants, make it nestable
@@ -1270,7 +1291,7 @@ void firstPass(std::vector<std::string> *src) {
 				errExit("Constant definition error", (*src)[i]);
 
 			std::string name = getSubStrBAChar(str, '=', true);
-			if (name == "LABEL" || name == "MACH" || name == "SIM")
+			if (name == "LABEL" || name == "MACH")
 				errExit("Constant named same as keyword", (*src)[i]);
 
 			constants.push_back({name, (unsigned int)getHBDNum(getSubStrBAChar(str, '=', false).c_str())});
@@ -1282,45 +1303,18 @@ void firstPass(std::vector<std::string> *src) {
 
 	debug_inform("Evaluating preprocessor expressions");
 	for (unsigned int i = 0; i < src->size(); i++) {
-		if (size_t p = (*src)[i].find(",("); p != std::string::npos) {
-			inflvl++;
-			size_t t = PreExpr::findClosing((*src)[i], p + 2);
-			debug_log("Evaluating expression: %s", (*src)[i].substr(p, t - (p - 1)).c_str());
-
-			//Replace constants
-			inflvl++;
-			std::string e = (*src)[i].substr(p + 2, t - (p + 2));
-			std::string::const_iterator iter = e.cbegin();
-			std::regex rx("(?:\\s|\\(|^)([a-zA-Z]+)(?:\\s|\\)|$)");
-			std::smatch match;
-			while (regex_search(iter, e.cend(), match, rx)) {
-				if (std::string str = match[1].str(); constantExists(str)) {
-					debug_log("Replacing constant in expression: %s", str.c_str());
-					e.erase(match.position(1), str.length());
-					e.insert(match.position(1), std::to_string(getConstant(str)));
-					iter = e.cbegin();
-				} else {
-					iter = match.suffix().first;
-				}
-			}
-			inflvl--;
-
-			PreExpr expr(e);
-			(*src)[i].erase(p, t - (p - 1));
-			(*src)[i].insert(p, std::to_string(expr.eval()));
-			debug_log("Expansion after evaluation: %s", (*src)[i].c_str());
-			inflvl--;
-			i--; //Reprocess line for more expressions
-		}
+		if (size_t p = (*src)[i].find(",("); p != std::string::npos)
+			evalLineExpr(&((*src)[i]));
 	}
 
 	debug_inform("Parsing macros");
-	for (unsigned int i = 0; i < src->size(); i++) { //TODO: VA_ARGS for macros ($$) -> ($0$, $1$, $2$, ...) + ($|$ -> ,($0$ | $1$ | ...))
+	for (unsigned int i = 0; i < src->size(); i++) {
 		if ((*src)[i][0] == '%') {
 			inflvl++;
 			std::string name = (*src)[i];
 			name.erase(name.begin());
 			bool containsArgs = false;
+			bool variadicArgs = false;
 			std::vector<KVP<std::string, std::string>> args;
 			debug_inform("Parsing macro %s", name.c_str());
 			inflvl++;
@@ -1328,18 +1322,25 @@ void firstPass(std::vector<std::string> *src) {
 			std::regex rx("^[A-Z_]+$");
 			std::smatch sm;
 			if (!std::regex_match(name, sm, rx)) {
-				std::regex ry("^[A-Z_]+( \\$[a-z]+)+$");
+				std::regex ry("^[A-Z_]+(\\s\\$[a-z]+)*(\\s\\$\\$)?$");
 				if (!std::regex_match(name, sm, ry)) {
 					errExit("Macro definition error", (*src)[i]);
 				} else {
 					containsArgs = true;
 					std::vector<std::string> arguments = cutString(name, ' ');
-					if (arguments[0] == "LABEL" || arguments[0] == "MACH" || arguments[0] == "SIM")
+					if (arguments[0] == "LABEL" || arguments[0] == "MACH")
 						errExit("Macro named same as keyword", (*src)[i]);
 					arguments.erase(arguments.begin());
 					for (unsigned int j = 0; j < arguments.size(); j++) {
+						if (arguments[j] == "$$") {
+							variadicArgs = true;
+							arguments.erase(arguments.begin() + j);
+							debug_log("With variadic arguments");
+							break;
+						}
+
 						arguments[j].erase(std::remove(arguments[j].begin(), arguments[j].end(), '$'), arguments[j].end());
-						debug_log("With argument: %s", arguments[arguments.size() - 1].c_str());
+						debug_log("With argument: %s", arguments[j].c_str());
 					}
 					for (unsigned int j = 0; j < arguments.size(); j++) {
 						args.push_back({arguments[j], ""});
@@ -1378,22 +1379,23 @@ void firstPass(std::vector<std::string> *src) {
 				for (unsigned int j = 0; j < macro.size(); j++) {
 					parseLine(macro[j]);
 				}
-				macros.push_back({name, bits, true, {}});
+				macros.push_back({name, bits, true, {}, false});
 				bits.clear();
 			} else {
 				std::vector<std::string> instructions;
+				std::regex noprecomp("^(?:LABEL|A\\s?=\\s?[a-zA-Z]+|.*\\$).*");
 				for (unsigned int j = 0; j < macro.size(); j++) {
-					macro[j].erase(std::remove(macro[j].begin(), macro[j].end(), ' '), macro[j].end());
-					if (!(stringContains(macro[j], "LABEL") || stringContains(macro[j], "$") || (macro[j][0] == 'A' && macro[j][1] == '=' && !isdigit(macro[j][2])))) {
+					if (Macro *macrop = getMacro(cutString(macro[j], ' ')[0]); std::regex_match(macro[j], noprecomp) || macrop != NULL) {
+						//macro[j].erase(std::remove(macro[j].begin(), macro[j].end(), ' '), macro[j].end());
+						instructions.push_back(macro[j]);
+					} else {
 						parseLine(macro[j]);
 						instructions.push_back("\\ci" + bits[0]);
 						bits.clear();
-					} else {
-						instructions.push_back(macro[j]);
 					}
 				}
 				
-				macros.push_back({cutString(name, ' ')[0], instructions, false, args});
+				macros.push_back({cutString(name, ' ')[0], instructions, false, args, variadicArgs});
 			}
 			i--;
 			inflvl--; inflvl--;
@@ -1466,9 +1468,8 @@ std::vector<std::string> fileFirstPass(const std::string& filename, const bool r
 void processLabels(std::vector<std::string> *src) {
 	unsigned int premOff = 0;
 	for (unsigned int i = 0; i < src->size(); i++) {
-		for (unsigned int j = 0; j < macros.size(); j++) {
-			if ((*src)[i] == macros[j].name)
-				premOff += macros[j].instructions.size() - 1;
+		if (Macro *macro = getMacro((*src)[i]); macro != NULL) {
+			premOff += macro->instructions.size() - 1;
 		}
 		if ((*src)[i].substr(0, 5) == "LABEL") {
 			labels.push_back({cutString((*src)[i], ' ')[1], i + premOff});
@@ -1489,19 +1490,16 @@ void expandUncompiledMacros(std::vector<std::string> *src) {
 		firstPass(src);
 
 		for (unsigned int i = 0; i < src->size(); i++) {
-			for (unsigned int j = 0; j < macros.size(); j++) {
-				if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded) {
-					src->erase(src->begin() + i);
-					src->insert(std::begin(*src) + i, std::begin(macros[j].instructions), std::end(macros[j].instructions));
-					i--;
-				}
+			if (Macro *macro = getMacro((*src)[i]); macro != NULL && !macro->shouldBeExpanded) {
+				src->erase(src->begin() + i);
+				src->insert(src->begin() + i, macro->instructions.begin(), macro->instructions.end());
+				i--;
 			}
 		}
 
 		bool breakLoop = true;
 		for (unsigned int i = 0; i < src->size(); i++) {
-			for (unsigned int j = 0; j < macros.size(); j++) {
-				if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded)
+			if (Macro *macro = getMacro((*src)[i]); macro != NULL && !macro->shouldBeExpanded) {
 					breakLoop = false;
 			}
 		}
@@ -1515,7 +1513,8 @@ void expandUncompiledMacros(std::vector<std::string> *src) {
 					std::string work = (*src)[i].substr(cutString((*src)[i], ' ')[0].length());
 					src->erase(src->begin() + i);
 
-					std::regex rx(std::string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) + "}$");
+					std::regex rx(std::string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) +
+												(macros[j].hasVariadicArgs ? ",}$" : "}$"));
 					std::smatch sm;
 					if (!std::regex_match(work, sm, rx))
 						errExit("Macro missuse", (*src)[i]);
@@ -1523,14 +1522,37 @@ void expandUncompiledMacros(std::vector<std::string> *src) {
 					work = work.substr(1);
 					std::vector<std::string> arguments = cutString(work, ' ');
 					Macro macro = macros[j];
-					for (unsigned int k = 0; k < arguments.size(); k++) {
+					for (unsigned int k = 0; k < macro.arguments.size(); k++) {
 						macro.arguments[k].value = arguments[k];
 					}
+					unsigned int va_from = macro.arguments.size();
+					if (macro.hasVariadicArgs) {
+						for (unsigned int k = va_from; k < arguments.size(); k++) {
+							macro.arguments.push_back({std::string("$") + std::to_string(k - va_from), arguments[k]});
+						}
+					}
 
+					std::regex opvargs("\\$[!~*\\/%+\\-&^|]\\$");
 					std::vector<std::string> instructions = macro.instructions;
 					for (unsigned int k = 0; k < instructions.size(); k++) {
 						for (unsigned int l = 0; l < macro.arguments.size(); l++) {
-							replace(instructions[k], "$" + macro.arguments[l].key, macro.arguments[l].value);
+							if (macro.hasVariadicArgs && l >= va_from) {
+								replace(instructions[k], macro.arguments[l].key + "$", macro.arguments[l].value);
+							} else {
+								replace(instructions[k], "$" + macro.arguments[l].key, macro.arguments[l].value);
+							}
+						}
+						std::smatch match;
+						if (macro.hasVariadicArgs && std::regex_search(instructions[k], match, opvargs)) {
+							std::string expr = "";
+							if (va_from < macro.arguments.size())
+								expr += macro.arguments[va_from].value;
+							for (unsigned int l = va_from + 1; l < macro.arguments.size(); l++) {
+								if (macro.arguments[l].key[0] == '$')
+									expr += " " + std::string(1, match[0].str()[1]) + " " + macro.arguments[l].value;
+							}
+							replace(instructions[k], match[0].str(), expr);
+							evalLineExpr(&(instructions[k]));
 						}
 					}
 					src->insert(std::begin(*src) + i, std::begin(instructions), std::end(instructions));
@@ -1538,19 +1560,21 @@ void expandUncompiledMacros(std::vector<std::string> *src) {
 				}
 			}
 		}
+
 		for (unsigned int i = 0; i < src->size(); i++) {
-			for (unsigned int j = 0; j < macros.size(); j++) {
-				if ((*src)[i] == macros[j].name && !macros[j].shouldBeExpanded)
-					expandUncompiledMacros(src);
+			printf("%s\n", (*src)[i].c_str());
+			if (Macro *macro = getMacro((*src)[i]); macro != NULL && !macro->shouldBeExpanded) {
+				expandUncompiledMacros(src);
 			}
 		}
+
 		bool breakLoop = true;
 		for (unsigned int i = 0; i < src->size(); i++) {
-			for (unsigned int j = 0; j < macros.size(); j++) {
-				if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].shouldBeExpanded)
-					breakLoop = false;
+			if (Macro *macro = getMacro(cutString((*src)[i], ' ')[0]); macro != NULL && !macro->shouldBeExpanded) {
+				breakLoop = false;
 			}
 		}
+
 		if (breakLoop)
 			break;
 	}

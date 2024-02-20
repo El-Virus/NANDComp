@@ -1,8 +1,12 @@
 #Simulator
-&STOP = 0
-&HOLD = 1
-&DUMP = 2
-&CLRS = 3
+&STOP = 1
+&HOLD = 2
+&DUMP = 4
+&CLRS = 8
+
+%SIM $$
+MACH ,(0xC000 | $|$)
+%%
 
 #NAND Game
 &SP = 0
