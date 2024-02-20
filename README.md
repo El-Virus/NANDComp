@@ -50,7 +50,7 @@ EG_VARGS_MACRO 4 2 6
 	- CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
 		- The parameters will run in the order in which they're mentioned above.
 - The preprocessor will evaluate the contents of basic arithmeticological operations (~ (or !) * / % + - & ^ (XOR) |) inside of ",()" according to the order of operations. E.g. `A = ,(4 | (5 + 1) / 2)` will be evaluated to `A = 7`
-	- The preprocessor will work with numbers with up to 32 bits, but keep in mind that the the maximum number in a "A = num" instruction has 16 bits
+	- The preprocessor will work with numbers with up to 32 bits, but keep in mind that the the maximum number in a "A = num" instruction has 15 bits
 
 ### Compiling the Assembler
 Just compile the Assembler and Misc CPP files with a C++17 capable compiler.
