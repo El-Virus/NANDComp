@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
 
 		//Store result
 		if (SFLAG(DEST_AM))
-			ROM[A] = R;
+			MEM[A] = R;
 		
 		if (SFLAG(DEST_A))
 			A = R;
