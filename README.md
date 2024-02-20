@@ -19,9 +19,10 @@ Just grab your favourite compiler and compile all the CPP files in the base dir.
 The assembler, is a little program that assembles code as described in the official NAND Game website into binary or decimal (if the -d flag is present) code.
 
 ### The language
-- Constants are defined by specifying a '&' character before name = value. Eg. `&constVal = 0`.
+- Constants are defined by specifying a '&' character before name = value. E.g. `&constVal = 0`.
 - Macros are defined by adding a '%' character before the name, and a '$' sign before the arguments. Macros end with "%%".
 	- Macros allow for variadic arguments with "$$", which can be accessed with "$i$" where i is the index of the vargument, it also allows for the combination of all vargs using a certain operation (In order to be evaluated by the preprocessor (see below))
+
 E.g.
 ```
 %MACRO_NAME $arg
@@ -45,11 +46,11 @@ EG_VARGS_MACRO 4 2 6
 - You can declare labels by using the LABEL keyword
 - An additional instruction that does not exist within NandGame, "MACH", has been added, similar to the C instruction, "ASM", can be used to insert code in a lower level programming language, in this case, machine code.
 	- It takes a single argument, a number (either decimal, binary or hexadecimal) which will be inserted as an instruction.
-- The "SIM" macro (defined in macros.src) interacts with the advanced simulator (see below), it takes one or more parameters:
-	- The parameters are: CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be performed or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
+- The "SIM" macro (defined in macros.src) interacts with the advanced simulator (see below), it takes one or more parameters, which are:
+	- CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
 		- The parameters will run in the order in which they're mentioned above.
-- The preprocessor will evaluate the contents of basic arithmeticological operations (~ (or !) * / % + - & ^ (XOR) |) inside of ",()" according to the order of operations. Eg. `A = ,(4 | (5 + 1) / 2)` will be evaluated to `A = 7`
-	- The preprocessor will work with numbers up to INT_MAX, but keep in mind that the the maximum number in a "A = num" instruction is SHORT_MAX
+- The preprocessor will evaluate the contents of basic arithmeticological operations (~ (or !) * / % + - & ^ (XOR) |) inside of ",()" according to the order of operations. E.g. `A = ,(4 | (5 + 1) / 2)` will be evaluated to `A = 7`
+	- The preprocessor will work with numbers with up to 32 bits, but keep in mind that the the maximum number in a "A = num" instruction has 16 bits
 
 ### Compiling the Assembler
 Just compile the Assembler and Misc CPP files with a C++17 capable compiler.
