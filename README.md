@@ -21,7 +21,7 @@ The assembler, is a little program that assembles code as described in the offic
 ### The language
 - Constants are defined by specifying a '&' character before name = value. E.g. `&constVal = 0`.
 - Macros are defined by adding a '%' character before the name, and a '$' sign before the arguments. Macros end with "%%".
-	- Macros allow for variadic arguments with "$$", which can be accessed with "$i$" where i is the index of the vargument, it also allows for the combination of all vargs using a certain operation (In order to be evaluated by the preprocessor (see below))
+	- Macros allow for variadic arguments with "$$", which can be accessed with "$i$" where i is the index of the vargument, it also allows for the combination of all vargs using a certain operation (In order to be evaluated by the preprocessor (see below)), the varg count can be accessed with "$C$" and you can cause an instruction to be repeated for each varg with "$F$"
 
 E.g.
 ```
@@ -40,6 +40,12 @@ A = ,($fixed * ($+$))
 
 #This will set D to 6 and A to 32 (4 * (2 + 6))
 EG_VARGS_MACRO 4 2 6
+
+#This macro will expand into code that will compute the sum of all vargs
+%EG_REP_MACRO $$
+A = 0
+A = A + $F$
+%%
 ```
 - Files can be included by inserting a '@' character before a filename (That line will be replaced with the code in the file).
 - The assembler will look for "macros.src" and include it automatically (Note that only constants and macros will be parsed unless manually included).
@@ -49,8 +55,9 @@ EG_VARGS_MACRO 4 2 6
 - The "SIM" macro (defined in macros.src) interacts with the advanced simulator (see below), it takes one or more parameters, which are:
 	- CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
 		- The parameters will run in the order in which they're mentioned above.
-- The preprocessor will evaluate the contents of basic arithmeticological operations (~ (or !) * / % + - & ^ (XOR) |) inside of ",()" according to the order of operations. E.g. `A = ,(4 | (5 + 1) / 2)` will be evaluated to `A = 7`
-	- The preprocessor will work with numbers with up to 32 bits, but keep in mind that the the maximum number in a "A = num" instruction has 15 bits
+- The preprocessor will evaluate the contents of basic arithmeticological operations (~ (or !) * / % + - & ^ (XOR) |) inside of ",()" according to the order of operations. E.g. `A = ,(4 | (5 + 1) / 2)` will be evaluated to `A = 7`.
+	- The preprocessor will work with numbers with up to 32 bits, but keep in mind that the the maximum number in a "A = num" instruction has 15 bits.
+- The PC of the current instruction can be obtained by using '.' for use in relative jumps.
 
 ### Compiling the Assembler
 Just compile the Assembler and Misc CPP files with a C++17 capable compiler.

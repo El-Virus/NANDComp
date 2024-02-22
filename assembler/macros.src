@@ -8,7 +8,7 @@
 MACH ,(0xC000 | $|$)
 %%
 
-#NAND Game
+#The Nand Game
 &SP = 0
 
 %INIT_STACK
@@ -18,6 +18,7 @@ A = SP
 *A = D
 %%
 
+#This has 4 instructions
 %PUSH_D
 A = SP
 *A = *A + 1
@@ -39,6 +40,7 @@ A = *A
 A = *A
 %%
 
+#This has 2 + PUSH_D instructions
 %PUSH_VALUE $value
 A = $value
 D = A
@@ -163,4 +165,32 @@ PUSH_D
 POP_D
 A = $address
 *A = D
+%%
+
+#Note how the macros below are implemented in a different way from the ones defined by The Nand Game
+
+%CALL $function $$
+PUSH_VALUE ,( . + ($C$ + 2) * 6 + 2)
+PUSH_VALUE $F$
+PUSH_VALUE $C$
+A = $function
+JMP
+%%
+
+%RETURN
+POP_D
+A = SP
+*A = *A - D
+POP_A
+JMP
+%%
+
+#Auxiliar helper macro: $reg = STACK[SP - 1 - $offset]
+%STACK_AT $offset $reg
+A = $offset
+D = A + 1
+A = SP
+A = *A
+A = A - D
+$reg = *A
 %%

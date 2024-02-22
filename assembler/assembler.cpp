@@ -394,7 +394,7 @@ class PreExpr {
 					open++;
 				} else if (expr[i] == ')') {
 					if (!open) {
-						debug_log("Closing for %lu at %lu \n", from, i);
+						debug_log("Closing for %lu at %lu", from, i);
 						--inflvl;
 						return i;
 					}
@@ -654,6 +654,29 @@ operation:
 #endif
 		}
 };
+
+/**
+ * @brief Cut a string each time a specific character is found, account for PreExpr
+ * 
+ * @param str The string to be cut
+ * @param delim The character to cut at
+ * @return std::vector<std::string> Vector of substrings
+ */
+std::vector<std::string> cutStrWPreExpr(const std::string& str, const char delim) {
+	std::vector<std::string> seglist;
+
+	size_t cut_from = 0;
+	for (size_t i = 0; i < str.size(); i++) {
+		if (str[i] == delim) {
+			seglist.push_back(str.substr(cut_from, i - cut_from));
+			cut_from = i + 1;
+		} else if (str[i] == ',' && str[i + 1] == '(') {
+			i = PreExpr::findClosing(str, i + 2);
+		}
+	}
+	seglist.push_back(str.substr(cut_from));
+	return seglist;
+}
 
 class Tokenizer {
 	private:
@@ -1224,7 +1247,7 @@ void parseLine(std::string line) {
  * @brief Evaluate preprocessor expressions on a line
  * 
  * @note This function effectively adapts the PreExpr class into the assembler:
- * 			It handles assembler specific syntax ",()", skips non-substituted arguments,
+ * 			It handles assembler specific syntax ",()", skips non-substituted arguments & relative addresses,
  * 			expands constants and replaces the result into the line
  * @param line Pointer to evaluated line
  */
@@ -1233,7 +1256,7 @@ void evalLineExpr(std::string *line) {
 	for (size_t p = line->find(",("); p != std::string::npos; p = line->find(",(")) {
 		size_t t = PreExpr::findClosing(*line, p + 2);
 		std::string e = line->substr(p + 2, t - (p + 2));
-		if (e.find('$') != std::string::npos)
+		if (e.find('$') != std::string::npos || e.find('.') != std::string::npos)
 			break; //Do not evaluate expressions with non-substituted arguments
 		debug_log("Evaluating expression: ,(%s)", e.c_str());
 
@@ -1476,6 +1499,10 @@ void processLabels(std::vector<std::string> *src) {
 			src->erase(src->begin() + i);
 			debug_log("Defined label %s at %u", labels[labels.size() - 1].key.c_str(), labels[labels.size() - 1].value);
 			i--;
+		} else if (size_t p = (*src)[i].find('.'); p != std::string::npos) {
+			(*src)[i].erase(p, 1);
+			(*src)[i].insert(p, std::to_string(i + premOff));
+			evalLineExpr(&((*src)[i]));
 		}
 	}
 }
@@ -1511,16 +1538,16 @@ void expandUncompiledMacros(std::vector<std::string> *src) {
 			for (unsigned int j = 0; j < macros.size(); j++) {
 				if (cutString((*src)[i], ' ')[0] == macros[j].name && !macros[j].shouldBeExpanded) {
 					std::string work = (*src)[i].substr(cutString((*src)[i], ' ')[0].length());
-					src->erase(src->begin() + i);
 
-					std::regex rx(std::string("^( [0-9A-Za-z]+){") + std::to_string(macros[j].arguments.size()) +
+					std::regex rx(std::string("^( [0-9A-Za-z]+| ,\\([\\s\\d!~*\\/%+\\-&^|\\.\\(\\)]+\\)){") + std::to_string(macros[j].arguments.size()) +
 												(macros[j].hasVariadicArgs ? ",}$" : "}$"));
 					std::smatch sm;
 					if (!std::regex_match(work, sm, rx))
 						errExit("Macro missuse", (*src)[i]);
+					src->erase(src->begin() + i);
 
 					work = work.substr(1);
-					std::vector<std::string> arguments = cutString(work, ' ');
+					std::vector<std::string> arguments = cutStrWPreExpr(work, ' ');
 					Macro macro = macros[j];
 					for (unsigned int k = 0; k < macro.arguments.size(); k++) {
 						macro.arguments[k].value = arguments[k];
@@ -1532,7 +1559,7 @@ void expandUncompiledMacros(std::vector<std::string> *src) {
 						}
 					}
 
-					std::regex opvargs("\\$[!~*\\/%+\\-&^|]\\$");
+					std::regex spvargs("\\$.\\$");
 					std::vector<std::string> instructions = macro.instructions;
 					for (unsigned int k = 0; k < instructions.size(); k++) {
 						for (unsigned int l = 0; l < macro.arguments.size(); l++) {
@@ -1543,26 +1570,61 @@ void expandUncompiledMacros(std::vector<std::string> *src) {
 							}
 						}
 						std::smatch match;
-						if (macro.hasVariadicArgs && std::regex_search(instructions[k], match, opvargs)) {
-							std::string expr = "";
-							if (va_from < macro.arguments.size())
-								expr += macro.arguments[va_from].value;
-							for (unsigned int l = va_from + 1; l < macro.arguments.size(); l++) {
-								if (macro.arguments[l].key[0] == '$')
-									expr += " " + std::string(1, match[0].str()[1]) + " " + macro.arguments[l].value;
+						if (macro.hasVariadicArgs && std::regex_search(instructions[k], match, spvargs)) {
+							std::string match_str = match[0].str();
+							size_t args_sz = macro.arguments.size();
+							switch (match_str[1]) {
+								case '!':
+								case '~':
+								case '*':
+								case '/':
+								case '%':
+								case '+':
+								case '-':
+								case '&':
+								case '^':
+								case '|': {
+									std::string expr = "";
+									if (va_from < args_sz)
+										expr += macro.arguments[va_from].value;
+									for (unsigned int l = va_from + 1; l < args_sz; l++) {
+										if (macro.arguments[l].key[0] == '$')
+											expr += " " + std::string(1, match_str[1]) + " " + macro.arguments[l].value;
+									}
+									replace(instructions[k], match_str, expr);
+									evalLineExpr(&(instructions[k]));
+									break;
+								}
+
+								case 'C':
+								case 'c':
+									replace(instructions[k], match_str, std::to_string(args_sz - va_from));
+									break;
+
+								case 'F':
+								case 'f':
+									for (unsigned int l = va_from; l < args_sz; l++) {
+										instructions.insert(instructions.begin() + k + 1 + (l - va_from), instructions[k]);
+										replace(instructions[k + 1 + (l - va_from)], match_str, macro.arguments[l].value);
+										k++;
+									}
+									instructions.erase(instructions.begin() + (k - (args_sz - va_from)));
+									k--;
+									break;
+
+								default:
+									errExit("Unrecognized variadic argument option", instructions[k]);
+									break;
 							}
-							replace(instructions[k], match[0].str(), expr);
-							evalLineExpr(&(instructions[k]));
 						}
 					}
-					src->insert(std::begin(*src) + i, std::begin(instructions), std::end(instructions));
+					src->insert(src->begin() + i, instructions.begin(), instructions.end());
 					i--;
 				}
 			}
 		}
 
 		for (unsigned int i = 0; i < src->size(); i++) {
-			printf("%s\n", (*src)[i].c_str());
 			if (Macro *macro = getMacro((*src)[i]); macro != NULL && !macro->shouldBeExpanded) {
 				expandUncompiledMacros(src);
 			}
@@ -1634,7 +1696,7 @@ int main(int argc, char **argv) {
 	std::string filename;
 	if (argc < 2 || argc > 3) {
 		printf("Usage: %s [-d] <program.src>\n", argv[0]);
-		return 1;
+		return 2;
 	} else if (argc == 2) {
 		filename = argv[1];
 	} else if (argc == 3) {
