@@ -1,6 +1,7 @@
 #pragma once
 #include "alu.hpp"
 #include "memory.hpp"
+#include "misc.hpp"
 
 using namespace BITMAN;
 

@@ -1123,38 +1123,40 @@ class CodeGenerator {
 			So, if you can't make sense of it, that's why.
 			*/
 
-			switch (twork[0]) {
-				case Tokens::A:
-					debug_log("A is first opperand");
-					if (twork.size() != 1) {
-						debug_log(" A swap has been performed");
-						work.b[SW] = 1;
-					}
-					break;
-				
-				case Tokens::Minus:
-					debug_log("The operator is minus");
-						work.b[ZX] = 1;
-						work.b[OP1] = 1;
-						if (twork.size() > 1) {
-							if (twork[1] == Tokens::D)
-								work.b[SW] = 1;
-							if (twork.size() == 2 && num != 1)
-								work.b[U] = 1;
-						}
-					break;
-
-				case Tokens::Tilde:
-					debug_log("The operator is tilde, invert");
-					work.b[OP0] = 1;
-					work.b[OP1] = 1;
-					if (twork.size() > 1)
-						if (twork[1] == Tokens::A)
+			if (twork.size() > 1) {
+				switch (twork[0]) {
+					case Tokens::A:
+						debug_log("A is first opperand");
+						if (twork.size() != 1) {
+							debug_log(" A swap has been performed");
 							work.b[SW] = 1;
-					break;
-				
-				default:
-					break;
+						}
+						break;
+					
+					case Tokens::Minus:
+						debug_log("The operator is minus");
+							work.b[ZX] = 1;
+							work.b[OP1] = 1;
+							if (twork.size() > 1) {
+								if (twork[1] == Tokens::D)
+									work.b[SW] = 1;
+								if (twork.size() == 2 && num != 1)
+									work.b[U] = 1;
+							}
+						break;
+
+					case Tokens::Tilde:
+						debug_log("The operator is tilde, invert");
+						work.b[OP0] = 1;
+						work.b[OP1] = 1;
+						if (twork.size() > 1)
+							if (twork[1] == Tokens::A)
+								work.b[SW] = 1;
+						break;
+					
+					default:
+						break;
+				}
 			}
 
 			if (twork.size() == 1) {
@@ -1167,7 +1169,7 @@ class CodeGenerator {
 				} else if (num != 0) {
 					work.b[U] = 1;
 				}
-			} else {
+			} else if (twork.size() > 1) {
 				switch (twork[1]) {
 					case Tokens::Or:
 						debug_log("The operator is or");

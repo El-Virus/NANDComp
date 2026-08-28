@@ -33,8 +33,8 @@ namespace PROCESSOR {
     DecodedInstruction decodeInstruction(WORD I) {
         DecodedInstruction di;
         BitArr<16> work = decomposeWord(I);
-        di.W = select16(work.b[CI], I, 0x0000000000000000);
-        work = decomposeWord(select16(work.b[CI], 0x0000000000100000, I));
+        di.W = select16(work.b[CI], I, 0b0000000000000000);
+        work = decomposeWord(select16(work.b[CI], 0b0000000000100000, I));
         di.computation = work.b[CI];
         di.source = work.b[SM];
         di.operation = {work.b[U], work.b[OP1], work.b[OP0], work.b[ZX], work.b[SW]};

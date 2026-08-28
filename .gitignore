@@ -1,6 +1,7 @@
 .vscode
 assembler/assembler
 sim
+nandcomp
 *.obj
 *.exe
 *.src

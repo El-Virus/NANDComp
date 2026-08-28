@@ -53,7 +53,7 @@ A = A + $F$
 - An additional instruction that does not exist within NandGame, "MACH", has been added, similar to the C instruction, "ASM", can be used to insert code in a lower level programming language, in this case, machine code.
 	- It takes a single argument, a number (either decimal, binary or hexadecimal) which will be inserted as an instruction.
 - The "SIM" macro (defined in macros.src) interacts with the advanced simulator (see below), it takes one or more parameters, which are:
-	- CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be or has just been perormed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
+	- CLRS (Clear screen), DUMP (Dump the registers, current instruction, and memory value at A, either if a jump is about to be or has just been performed), "HOLD" (Wait for user keypress before continuing) and "STOP" (Stop the simulator).
 		- The parameters will run in the order in which they're mentioned above.
 - The preprocessor will evaluate the contents of basic arithmeticological operations (~ (or !) * / % + - & ^ (XOR) |) inside of ",()" according to the order of operations. E.g. `A = ,(4 | (5 + 1) / 2)` will be evaluated to `A = 7`.
 	- The preprocessor will work with numbers with up to 32 bits, but keep in mind that the the maximum number in a "A = num" instruction has 15 bits.
